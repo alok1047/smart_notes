@@ -15,6 +15,21 @@ export const saveProcessedNotes = async (lectureId, processedNotes) => {
   return res.data;
 };
 
+export const updateLectureTitle = async (lectureId, title) => {
+  const res = await api.put(`/lectures/${lectureId}`, { title });
+  return res.data;
+};
+
+export const addLecture = async (subjectId) => {
+  const res = await api.post(`/lectures/${subjectId}`);
+  return res.data;
+};
+
+export const deleteLecture = async (lectureId) => {
+  const res = await api.delete(`/lectures/single/${lectureId}`);
+  return res.data;
+};
+
 export const processNotes = async (lectureId, aiProvider, apiKey) => {
   const res = await api.post(`/lectures/${lectureId}/process`, {
     aiProvider,

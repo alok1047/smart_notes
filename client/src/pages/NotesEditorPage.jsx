@@ -30,6 +30,7 @@ const NotesEditorPage = () => {
   const [processing, setProcessing] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'saved' | 'error' | null
   const [processError, setProcessError] = useState('');
+  const [pendingNotes, setPendingNotes] = useState(null);
   const [activeTab, setActiveTab] = useState('processed'); // default: processed
   const [lastSaved, setLastSaved] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -133,9 +134,26 @@ const NotesEditorPage = () => {
       await saveRawNotes(lectureId, rawNotes);
       const r = await processNotes(lectureId, aiConfig.provider, aiConfig.apiKey);
       setLecture(r.lecture);
+      
+      if (r.processedNotes) {
+        setPendingNotes(r.processedNotes);
+      }
       switchTab('processed');
     } catch (e) {
       setProcessError(e.response?.data?.error || 'AI processing failed. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const acceptPendingNotes = async () => {
+    if (!pendingNotes) return;
+    try {
+      setProcessing(true);
+      await handleSaveProcessed(pendingNotes);
+      setPendingNotes(null);
+    } catch (e) {
+      console.error('Failed to accept notes:', e);
     } finally {
       setProcessing(false);
     }
@@ -208,7 +226,7 @@ const NotesEditorPage = () => {
             </button>
             <div className="min-w-0 hidden sm:block">
               <p className="text-[13px] font-semibold text-[#d4d4d4] truncate leading-none">
-                Lecture {lecture?.lectureNumber}
+                {lecture?.title?.trim() || `Lecture ${lecture?.lectureNumber}`}
               </p>
               <p className="text-[11px] text-[#525252] truncate mt-0.5">{subject?.name}</p>
             </div>
@@ -360,7 +378,10 @@ const NotesEditorPage = () => {
           {/* ── PROCESSED NOTES ── */}
           {activeTab === 'processed' && (
             <ProcessedNotes
-              content={lecture?.processedNotes}
+              content={pendingNotes !== null ? pendingNotes : lecture?.processedNotes}
+              isPendingMode={pendingNotes !== null}
+              onAccept={acceptPendingNotes}
+              onDiscard={() => setPendingNotes(null)}
               lectureId={lectureId}
               onSave={handleSaveProcessed}
             />

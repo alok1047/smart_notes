@@ -3,15 +3,17 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, BookOpen, Zap, Plus, ChevronLeft,
-  ChevronRight, GraduationCap, LogOut, Settings, Sparkles
+  ChevronRight, GraduationCap, LogOut, Settings, Sparkles, CloudUpload
 } from 'lucide-react';
 import AISettingsModal from './AISettingsModal';
+import GithubSettingsModal from './GithubSettingsModal';
 
 const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
   const { user, dbUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showSettings, setShowSettings] = useState(false);
+  const [showGithubSettings, setShowGithubSettings] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -125,6 +127,13 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
                 <Sparkles size={14} />
               </button>
               <button
+                onClick={() => setShowGithubSettings(true)}
+                className="p-1.5 rounded-md text-[#525252] hover:text-[#d4d4d4] hover:bg-[#1f1f1f] transition-colors"
+                title="GitHub Settings"
+              >
+                <CloudUpload size={14} />
+              </button>
+              <button
                 onClick={handleLogout}
                 className="p-1.5 rounded-md text-[#525252] hover:text-[#f43f5e] hover:bg-[#1f1f1f] transition-colors"
                 title="Sign out"
@@ -144,6 +153,13 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
               <Sparkles size={14} />
             </button>
             <button
+              onClick={() => setShowGithubSettings(true)}
+              className="btn-ghost w-full justify-center text-[#525252] hover:text-[#d4d4d4]"
+              data-tooltip="GitHub Settings"
+            >
+              <CloudUpload size={14} />
+            </button>
+            <button
               onClick={handleLogout}
               className="btn-ghost w-full justify-center text-[#525252] hover:text-[#f43f5e]"
               data-tooltip="Sign out"
@@ -155,6 +171,7 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
       </div>
 
       {showSettings && <AISettingsModal onClose={() => setShowSettings(false)} />}
+      <GithubSettingsModal isOpen={showGithubSettings} onClose={() => setShowGithubSettings(false)} />
     </aside>
   );
 };

@@ -1,6 +1,8 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Zap } from 'lucide-react';
+import { parseCustomSyntaxBlocks } from '../utils/markdownUtils';
+import CodeBlock from './CodeBlock';
 
 const RevisionMode = ({ content }) => {
   if (!content?.trim()) {
@@ -46,19 +48,29 @@ const RevisionMode = ({ content }) => {
   };
 
   const revContent = extract(content);
+  const cleaned = revContent || '## No key points found\n\nReprocess your notes — the AI will add a key points section.';
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full flex flex-col overflow-hidden animate-fade-in">
       <div className="px-8 py-5 border-b border-[#1f1f1f]">
         <div className="revision-badge">
           <Zap size={10} />
           Revision Mode — Key Points Only
         </div>
       </div>
-      <div className="markdown-body" style={{ height: 'auto', paddingTop: '28px', maxWidth: '980px' }}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {revContent || '## No key points found\n\nReprocess your notes — the AI will add a key points section.'}
-        </ReactMarkdown>
+      <div 
+        className="flex-1 overflow-y-auto px-10 py-8 revision-body markdown-body" 
+        style={{ backgroundColor: '#0a0a0a' }}
+      >
+        <div style={{ maxWidth: '980px' }}>
+          {parseCustomSyntaxBlocks(cleaned).map((block, i) => (
+            block.type === 'code' ? (
+              <CodeBlock key={i} content={block.content} language={block.language} />
+            ) : (
+              <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
+            )
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import LectureItem from '../components/LectureItem';
-import { getLectures } from '../services/lectureService';
-import { ArrowLeft, BookOpen, CheckCircle2, Edit3, Circle } from 'lucide-react';
+import { getLectures, addLecture, deleteLecture, updateLectureTitle } from '../services/lectureService';
+import { ArrowLeft, BookOpen, CheckCircle2, Edit3, Circle, Plus, Loader2 } from 'lucide-react';
 
 const LecturesPage = () => {
   const { subjectId } = useParams();
@@ -12,6 +12,7 @@ const LecturesPage = () => {
   const [subject, setSubject] = useState(null);
   const [lectures, setLectures] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [addingLecture, setAddingLecture] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -29,6 +30,40 @@ const LecturesPage = () => {
       }
     })();
   }, [subjectId, navigate]);
+
+  const handleAddLecture = async () => {
+    try {
+      setAddingLecture(true);
+      const newLec = await addLecture(subjectId);
+      setLectures(prev => [...prev, newLec]);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to add blank lecture.');
+    } finally {
+      setAddingLecture(false);
+    }
+  };
+
+  const handleDeleteLecture = async (lecId) => {
+    if (!window.confirm("Are you sure you want to securely delete this lecture? Any AI generated materials will be lost forever.")) return;
+    try {
+      await deleteLecture(lecId);
+      setLectures(prev => prev.filter(l => l._id !== lecId));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete lecture.');
+    }
+  };
+
+  const handleUpdateTitle = async (lecId, newTitle) => {
+    try {
+      await updateLectureTitle(lecId, newTitle);
+      setLectures(prev => prev.map(l => l._id === lecId ? { ...l, title: newTitle } : l));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save title update.');
+    }
+  };
 
   const processed = lectures.filter(l => l.processedNotes?.trim()).length;
   const inProgress = lectures.filter(l => l.rawNotes?.trim() && !l.processedNotes?.trim()).length;
@@ -112,9 +147,19 @@ const LecturesPage = () => {
                 </div>
 
                 {/* Lectures list */}
-                <div className="lecture-list">
+                <div className="lecture-list flex flex-col gap-2">
+                  <button onClick={handleAddLecture} disabled={addingLecture} className="btn-ghost flex items-center justify-center gap-2 py-4 mb-2 border border-dashed border-[#2a2a2a] w-full text-[#737373] hover:text-[#d8b4fe] hover:border-[#a78bfa] transition-colors rounded-xl">
+                    {addingLecture ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    <span className="text-[13px] font-medium">Add Blank Lecture manually</span>
+                  </button>
+                  
                   {lectures.map(l => (
-                    <LectureItem key={l._id} lecture={l} />
+                    <LectureItem 
+                      key={l._id} 
+                      lecture={l} 
+                      onDelete={() => handleDeleteLecture(l._id)}
+                      onUpdateTitle={(title) => handleUpdateTitle(l._id, title)}
+                    />
                   ))}
                 </div>
               </div>

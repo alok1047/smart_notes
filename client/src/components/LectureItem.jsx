@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Circle, Edit3, Clock, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Circle, Edit3, Clock, ChevronRight, PenLine, Trash2 } from 'lucide-react';
 
-const LectureItem = ({ lecture }) => {
+const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
   const navigate = useNavigate();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(lecture.title || '');
 
   const hasRaw = lecture.rawNotes?.trim().length > 0;
   const hasProcessed = lecture.processedNotes?.trim().length > 0;
@@ -61,9 +64,54 @@ const LectureItem = ({ lecture }) => {
           >
             {lecture.lectureNumber}
           </span>
-          <span className="text-[15px] font-semibold text-[#d4d4d4]">
-            Lecture {lecture.lectureNumber}
-          </span>
+          <div className="flex items-center gap-2 group/title relative">
+            {isEditing ? (
+              <input
+                autoFocus
+                type="text"
+                value={editTitle}
+                onClick={e => e.stopPropagation()}
+                onChange={e => setEditTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.stopPropagation();
+                    setIsEditing(false);
+                    onUpdateTitle && onUpdateTitle(editTitle.trim());
+                  }
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setEditTitle(lecture.title || '');
+                    setIsEditing(false);
+                  }
+                }}
+                onBlur={() => {
+                  setIsEditing(false);
+                  const trimmed = editTitle.trim();
+                  if (trimmed !== (lecture.title || '')) {
+                    onUpdateTitle && onUpdateTitle(trimmed);
+                  }
+                }}
+                className="bg-[#1f1f1f] text-[#f5f5f5] px-2 py-0.5 rounded outline-none border border-[#3f3f46] text-[15px] font-semibold w-[200px]"
+                placeholder={`Lecture ${lecture.lectureNumber}`}
+              />
+            ) : (
+              <span className="text-[15px] font-semibold text-[#d4d4d4]">
+                {lecture.title?.trim() || `Lecture ${lecture.lectureNumber}`}
+              </span>
+            )}
+            
+            {!isEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditing(true);
+                }}
+                className="text-[#525252] hover:text-[#d4d4d4] opacity-0 group-hover/title:opacity-100 transition-opacity"
+              >
+                <PenLine size={12} />
+              </button>
+            )}
+          </div>
           <span className={`badge ${status.cls}`}>
             <StatusIcon size={10} />
             {status.label}
@@ -86,7 +134,17 @@ const LectureItem = ({ lecture }) => {
             {relTime(lecture.updatedAt)}
           </span>
         )}
-        <ChevronRight size={16} className="text-[#2a2a2a] group-hover:text-[#a78bfa] transition-colors" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onDelete) onDelete();
+          }}
+          className="text-[#525252] hover:text-[#ef4444] opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded"
+          title="Delete Lecture"
+        >
+          <Trash2 size={14} />
+        </button>
+        <ChevronRight size={16} className="text-[#3a3a3a] group-hover:text-[#a78bfa] transition-colors" />
       </div>
     </div>
   );

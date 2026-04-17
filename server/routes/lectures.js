@@ -66,13 +66,79 @@ router.get('/:subjectId', async (req, res) => {
 });
 
 /**
+ * POST /api/lectures/:subjectId
+ * Add a new manual blank lecture
+ */
+router.post('/:subjectId', async (req, res) => {
+  try {
+    const subject = await Subject.findOne({
+      _id: req.params.subjectId,
+      userId: req.user._id,
+    });
+    if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+    // Find highest lecture number
+    const lastLec = await Lecture.findOne({ subjectId: subject._id })
+      .sort('-lectureNumber');
+    
+    const nextNum = lastLec ? lastLec.lectureNumber + 1 : 1;
+
+    const lecture = new Lecture({
+      subjectId: subject._id,
+      lectureNumber: nextNum,
+      title: '',
+      rawNotes: '',
+      processedNotes: ''
+    });
+
+    await lecture.save();
+    
+    // Update subject tracking
+    subject.totalLectures += 1;
+    await subject.save();
+
+    res.status(201).json(lecture);
+  } catch (error) {
+    console.error('Add lecture error:', error.message);
+    res.status(500).json({ error: 'Failed to add lecture' });
+  }
+});
+
+/**
+ * DELETE /api/lectures/single/:id
+ * Delete a specific lecture
+ */
+router.delete('/single/:id', async (req, res) => {
+  try {
+    const lecture = await Lecture.findById(req.params.id);
+    if (!lecture) return res.status(404).json({ error: 'Lecture not found' });
+
+    const subject = await Subject.findOne({
+      _id: lecture.subjectId,
+      userId: req.user._id,
+    });
+    if (!subject) return res.status(403).json({ error: 'Not authorized' });
+
+    await Lecture.deleteOne({ _id: lecture._id });
+    
+    subject.totalLectures = Math.max(0, subject.totalLectures - 1);
+    await subject.save();
+
+    res.json({ message: 'Lecture deleted successfully' });
+  } catch (error) {
+    console.error('Delete lecture error:', error.message);
+    res.status(500).json({ error: 'Failed to delete lecture' });
+  }
+});
+
+/**
  * PUT /api/lectures/:id
  * Update raw notes for a lecture
  * Body: { rawNotes: string }
  */
 router.put('/:id', async (req, res) => {
   try {
-    const { rawNotes, processedNotes } = req.body;
+    const { rawNotes, processedNotes, title } = req.body;
 
     const lecture = await Lecture.findById(req.params.id);
     if (!lecture) {
@@ -92,6 +158,7 @@ router.put('/:id', async (req, res) => {
     // Update whichever fields are provided
     if (rawNotes !== undefined) lecture.rawNotes = rawNotes;
     if (processedNotes !== undefined) lecture.processedNotes = processedNotes;
+    if (title !== undefined) lecture.title = title;
     await lecture.save();
 
     res.json({
@@ -133,12 +200,10 @@ router.post('/:id/process', async (req, res) => {
     const { aiProvider, apiKey } = req.body || {};
     const processedNotes = await processNotes(lecture.rawNotes, aiProvider, apiKey);
 
-    // Save processed notes
-    lecture.processedNotes = processedNotes;
-    await lecture.save();
-
+    // Do not auto-save to allow frontend previewing
     res.json({
-      message: 'Notes processed successfully',
+      message: 'Notes processed natively. Waiting for user approval.',
+      processedNotes,
       lecture,
     });
   } catch (error) {
