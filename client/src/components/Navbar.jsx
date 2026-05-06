@@ -24,7 +24,7 @@ const Navbar = () => {
           <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
             <BookOpen size={18} className="text-white" />
           </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-primary-400 to-purple-400 bg-clip-text text-transparent hidden sm:block">
+          <span className="text-lg font-bold bg-gradient-to-r from-[#4EC5C5] to-[#068864] bg-clip-text text-transparent hidden sm:block">
             SmartNotes
           </span>
         </Link>

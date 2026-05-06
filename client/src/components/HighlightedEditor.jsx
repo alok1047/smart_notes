@@ -69,19 +69,19 @@ const highlightSyntax = (code) => {
       const borderRadius = `${isFirstLine ? '8px' : '0'} ${isFirstLine ? '8px' : '0'} ${isLastLine ? '8px' : '0'} ${isLastLine ? '8px' : '0'}`;
       const content = processed || '&nbsp;';
       
-      return `<span style="background-color: #1a1a1a; color: #f5f5f5; font-family: var(--font-mono); font-size: 13.5px; display: inline-block; min-width: 100%; padding: 0 16px; margin: 0; border-radius: ${borderRadius}; box-shadow: 0 2px 0 #1a1a1a, 0 -2px 0 #1a1a1a; vertical-align: bottom;">${content}</span>`;
+      return `<span style="background-color: #132530; color: #f5f5f5; font-family: var(--font-mono); font-size: 13.5px; display: inline-block; min-width: 100%; padding: 0 16px; margin: 0; border-radius: ${borderRadius}; box-shadow: 0 2px 0 #132530, 0 -2px 0 #132530; vertical-align: bottom;">${content}</span>`;
     } else {
       // Normal line - apply slash commands
       if (rawEscaped.includes('//ai')) {
         return rawEscaped.replace(/(\/\/ai.*)/, '<span style="color: #d946ef; font-weight: 600;">$1</span>');
       } else if (rawEscaped.includes('//*')) {
-        return rawEscaped.replace(/(\/\/\*.*)/, '<span style="background-color: rgba(34, 197, 94, 0.15); color: #4ade80; font-weight: 600; padding: 2px 4px; border-radius: 4px; box-decoration-break: clone;">$1</span>');
+        return rawEscaped.replace(/(\/\/\*.*)/, '<span style="background-color: rgba(6, 136, 100, 0.15); color: #4ade80; font-weight: 600; padding: 2px 4px; border-radius: 4px; box-decoration-break: clone;">$1</span>');
       } else if (rawEscaped.includes('//?')) {
         return rawEscaped.replace(/(\/\/\?.*)/, '<span style="color: #60a5fa; font-style: italic;">$1</span>');
       } else if (rawEscaped.includes('//&gt;')) {
         return rawEscaped.replace(/(\/\/&gt;.*)/, '<span style="color: #fb923c; font-weight: 500;">$1</span>');
       } else if (rawEscaped.includes('//')) {
-        return rawEscaped.replace(/(\/\/.*)/, '<span style="color: #22c55e; opacity: 0.9;">$1</span>');
+        return rawEscaped.replace(/(\/\/.*)/, '<span style="color: #068864; opacity: 0.9;">$1</span>');
       }
     }
     

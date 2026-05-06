@@ -11,10 +11,10 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
   const hasProcessed = lecture.processedNotes?.trim().length > 0;
 
   const status = hasProcessed
-    ? { label: 'Processed', dotColor: '#22c55e', cls: 'badge-green', icon: CheckCircle2 }
+    ? { label: 'Done', cls: 'badge-green', icon: CheckCircle2 }
     : hasRaw
-    ? { label: 'In Progress', dotColor: '#f59e0b', cls: 'badge-amber', icon: Edit3 }
-    : { label: 'Not Started', dotColor: '#404040', cls: 'badge-gray', icon: Circle };
+    ? { label: 'Draft', cls: 'badge-amber', icon: Edit3 }
+    : { label: 'Empty', cls: 'badge-gray', icon: Circle };
 
   const StatusIcon = status.icon;
 
@@ -29,108 +29,79 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
     return Math.floor(h / 24) + 'd ago';
   };
 
-  const preview = (lecture.rawNotes || '').trim().substring(0, 100).replace(/\n/g, ' ');
+  const preview = (lecture.rawNotes || '').trim().substring(0, 100).replace(/\s+/g, ' ');
 
   return (
     <div
       onClick={() => navigate(`/editor/${lecture._id}`)}
-      className="group lecture-item relative flex items-start gap-5"
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = '#2a2a2a';
-        e.currentTarget.style.transform = 'translateY(-1px) scale(1.003)';
-        e.currentTarget.style.boxShadow = '0 6px 28px rgba(0,0,0,0.45)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = '#1f1f1f';
-        e.currentTarget.style.transform = 'none';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
+      className="group lecture-item flex items-center gap-3"
     >
-      {/* Status dot line */}
-      <div className="flex flex-col items-center gap-1 flex-shrink-0 mt-1.5">
-        <div
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{ background: status.dotColor }}
-        />
+      <div className="w-8 h-8 rounded-md bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center shrink-0 text-[12px] font-medium text-(--text-dim)">
+        {lecture.lectureNumber}
       </div>
 
-      {/* Number + content */}
-      <div className="flex-1 min-w-0" style={{ paddingTop: '2px' }}>
-        {/* Top row */}
-        <div className="flex items-center flex-wrap gap-4 mb-3">
-          <span
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-[13px] font-bold flex-shrink-0"
-            style={{ background: '#1f1f1f', border: '1px solid #2a2a2a', color: '#737373' }}
-          >
-            {lecture.lectureNumber}
-          </span>
-          <div className="flex items-center gap-2 group/title relative">
-            {isEditing ? (
-              <input
-                autoFocus
-                type="text"
-                value={editTitle}
-                onClick={e => e.stopPropagation()}
-                onChange={e => setEditTitle(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.stopPropagation();
-                    setIsEditing(false);
-                    onUpdateTitle && onUpdateTitle(editTitle.trim());
-                  }
-                  if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    setEditTitle(lecture.title || '');
-                    setIsEditing(false);
-                  }
-                }}
-                onBlur={() => {
-                  setIsEditing(false);
-                  const trimmed = editTitle.trim();
-                  if (trimmed !== (lecture.title || '')) {
-                    onUpdateTitle && onUpdateTitle(trimmed);
-                  }
-                }}
-                className="bg-[#1f1f1f] text-[#f5f5f5] px-2 py-0.5 rounded outline-none border border-[#3f3f46] text-[15px] font-semibold w-[200px]"
-                placeholder={`Lecture ${lecture.lectureNumber}`}
-              />
-            ) : (
-              <span className="text-[15px] font-semibold text-[#d4d4d4]">
-                {lecture.title?.trim() || `Lecture ${lecture.lectureNumber}`}
-              </span>
-            )}
-            
-            {!isEditing && (
-              <button
-                onClick={(e) => {
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center flex-wrap gap-2 mb-0.5">
+          {isEditing ? (
+            <input
+              autoFocus
+              type="text"
+              value={editTitle}
+              onClick={e => e.stopPropagation()}
+              onChange={e => setEditTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
                   e.stopPropagation();
-                  setIsEditing(true);
-                }}
-                className="text-[#525252] hover:text-[#d4d4d4] opacity-0 group-hover/title:opacity-100 transition-opacity"
+                  setIsEditing(false);
+                  onUpdateTitle && onUpdateTitle(editTitle.trim());
+                }
+                if (e.key === 'Escape') {
+                  e.stopPropagation();
+                  setEditTitle(lecture.title || '');
+                  setIsEditing(false);
+                }
+              }}
+              onBlur={() => {
+                setIsEditing(false);
+                const trimmed = editTitle.trim();
+                if (trimmed !== (lecture.title || '')) {
+                  onUpdateTitle && onUpdateTitle(trimmed);
+                }
+              }}
+              className="bg-(--surface-hover) text-(--text) px-2 py-0.5 rounded-md outline-none border border-(--accent) text-[13.5px] font-medium min-w-50"
+              placeholder={`Lecture ${lecture.lectureNumber}`}
+            />
+          ) : (
+            <>
+              <h3 className="text-[13.5px] font-medium text-(--text) truncate leading-tight">
+                {lecture.title?.trim() || `Lecture ${lecture.lectureNumber}`}
+              </h3>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+                className="text-(--text-faint) hover:text-(--text-dim) opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                title="Rename"
               >
-                <PenLine size={12} />
+                <PenLine size={11} />
               </button>
-            )}
-          </div>
+            </>
+          )}
           <span className={`badge ${status.cls}`}>
             <StatusIcon size={10} />
             {status.label}
           </span>
         </div>
 
-        {/* Preview text */}
         {preview ? (
-          <p className="text-[13px] text-[#525252] truncate pl-[52px] leading-relaxed">{preview}</p>
+          <p className="text-[12px] text-(--text-faint) truncate leading-relaxed">{preview}</p>
         ) : (
-          <p className="text-[13px] text-[#3a3a3a] pl-[52px] italic leading-relaxed">No notes yet — click to start writing</p>
+          <p className="text-[12px] text-(--text-faint) leading-relaxed">No notes yet</p>
         )}
       </div>
 
-      {/* Right side */}
-      <div className="flex items-center gap-4 flex-shrink-0 self-center">
+      <div className="flex items-center gap-2 shrink-0">
         {lecture.updatedAt && (
-          <span className="hidden sm:flex items-center gap-1.5 text-[12px] text-[#404040]">
-            <Clock size={11} />
+          <span className="hidden sm:flex items-center gap-1 text-[11px] text-(--text-faint)">
+            <Clock size={10} />
             {relTime(lecture.updatedAt)}
           </span>
         )}
@@ -139,12 +110,12 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
             e.stopPropagation();
             if (onDelete) onDelete();
           }}
-          className="text-[#525252] hover:text-[#ef4444] opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded"
-          title="Delete Lecture"
+          className="text-(--text-faint) hover:text-(--danger) opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-(--surface-hover)"
+          title="Delete lecture"
         >
-          <Trash2 size={14} />
+          <Trash2 size={12} />
         </button>
-        <ChevronRight size={16} className="text-[#3a3a3a] group-hover:text-[#a78bfa] transition-colors" />
+        <ChevronRight size={14} className="text-(--text-faint) group-hover:text-(--text-dim) transition-colors" />
       </div>
     </div>
   );

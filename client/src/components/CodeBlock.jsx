@@ -30,21 +30,21 @@ const CodeBlock = ({ content, language = 'javascript' }) => {
   };
 
   return (
-    <div className="relative group my-8 bg-[#181818] border border-[#2a2a2a] rounded-xl overflow-hidden shadow-2xl transition-all hover:border-[#3a3a3a]">
+    <div className="relative group my-8 bg-[#181818] border border-[#003A3D] rounded-xl overflow-hidden shadow-2xl transition-all hover:border-[#3a3a3a]">
       {/* Header / Language Badge */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#222222] border-b border-[#2a2a2a]">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#222222] border-b border-[#003A3D]">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444] opacity-80"></div>
             <div className="w-2.5 h-2.5 rounded-full bg-[#fbbf24] opacity-80"></div>
-            <div className="w-2.5 h-2.5 rounded-full bg-[#22c55e] opacity-80"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-[#068864] opacity-80"></div>
           </div>
           <div className="w-px h-3 bg-[#333] mx-1"></div>
           <span className="text-[10px] font-bold text-[#737373] uppercase tracking-widest">{language}</span>
         </div>
         <button
           onClick={handleCopy}
-          className="p-1 px-2 rounded-md hover:bg-[#2a2a2a] text-[#737373] hover:text-[#e5e5e5] transition-all flex items-center gap-1.5"
+          className="p-1 px-2 rounded-md hover:bg-[#003A3D] text-[#737373] hover:text-[#e5e5e5] transition-all flex items-center gap-1.5"
           title="Copy code"
         >
           {copied ? (

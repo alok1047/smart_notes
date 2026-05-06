@@ -26,7 +26,7 @@ const GithubSettingsModal = ({ isOpen, onClose }) => {
       <div className="w-[450px] p-6 text-[#e5e5e5]">
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-[15px] font-semibold flex items-center gap-2">
-            <CloudUpload size={18} style={{ color: '#a78bfa' }} />
+            <CloudUpload size={18} style={{ color: '#4EC5C5' }} />
             GitHub Integrations
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5" style={{ background: 'transparent' }}>
