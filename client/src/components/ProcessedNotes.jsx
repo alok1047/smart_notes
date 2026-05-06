@@ -16,14 +16,12 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
   const [isPushing, setIsPushing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Sync initial content
   useEffect(() => {
     if (!editing) {
       setDraft(content || '');
     }
   }, [content, editing]);
 
-  // Auto-save logic just like raw notes
   useEffect(() => {
     if (!editing) return;
     if (draft === content) return;
@@ -50,7 +48,7 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
       setIsExporting(true);
       const element = document.getElementById('processed-markdown-content');
       if (!element) return;
-      
+
       const opt = {
         margin:       10,
         filename:     'structured_notes.pdf',
@@ -58,7 +56,7 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
         html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-      
+
       await html2pdf().from(element).set(opt).save();
     } catch (err) {
       console.error(err);
@@ -81,16 +79,13 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
       const filename = `notes_${lectureId}.md`;
       const path = `notes/${filename}`;
 
-      // 1. Get current file sha if exists (to update)
       const getFileRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
         headers: { Authorization: `token ${token}` }
       });
       const fileData = getFileRes.ok ? await getFileRes.json() : null;
 
-      // 2. Base64 encode the markdown
       const contentBase64 = btoa(unescape(encodeURIComponent(parseCustomSyntax(draft))));
 
-      // 3. Put the file
       const body = {
         message: `docs: syncing structured lecture notes ${lectureId}`,
         content: contentBase64,
@@ -121,110 +116,97 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
   if (!content?.trim() && !editing) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-20 px-8">
-        <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
-          style={{ background: '#1f1f1f', border: '1px solid #2a2a2a' }}
-        >
-          <Sparkles size={24} style={{ color: '#404040' }} />
+        <div className="w-12 h-12 rounded-xl bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center mb-4">
+          <Sparkles size={20} className="text-(--text-faint)" strokeWidth={1.75} />
         </div>
-        <h3 className="text-[14px] font-semibold mb-2" style={{ color: '#525252' }}>No processed notes yet</h3>
-        <p className="text-[12px] leading-relaxed max-w-xs" style={{ color: '#404040' }}>
-          Write your raw notes in the editor and click "Process with AI" to generate structured notes.
+        <h3 className="text-[14px] font-medium mb-1.5 text-(--text)">No processed notes yet</h3>
+        <p className="text-[12.5px] leading-relaxed max-w-xs text-(--text-dim)">
+          Write your raw notes in the editor and click "Process" to generate structured notes.
         </p>
       </div>
     );
   }
 
   return (
-    <div
-      className="h-full flex flex-col overflow-hidden animate-fade-in"
-      style={{ transition: 'opacity 0.2s ease' }}
-    >
-      {/* Pending Note Action Banner */}
+    <div className="h-full flex flex-col overflow-hidden animate-fade-in">
+      {/* Pending banner */}
       {isPendingMode && (
-        <div className="flex items-center justify-between px-8 py-3 bg-[#3b0764] border-b border-[#9333ea] flex-shrink-0 animate-fade-in">
-          <div className="flex items-center gap-2 text-white">
-            <Sparkles size={14} className="text-[#d8b4fe]" />
-            <span className="text-[12px] font-medium tracking-wide">AI Notes Generated! Review the structure below.</span>
+        <div className="flex items-center justify-between gap-4 px-8 py-2.5 shrink-0 animate-fade-in bg-(--accent-soft) border-b border-(--border-subtle)">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Sparkles size={14} className="text-(--accent-text) shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-medium text-(--text) leading-tight">AI draft ready</p>
+              <p className="text-[11px] text-(--text-dim) mt-0.5">Review below — accept to overwrite, or discard.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onDiscard} className="btn-ghost text-[11px] px-3 font-semibold text-[#fca5a5] hover:text-white hover:bg-[#b91c1c] py-1 border border-[#b91c1c]">
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={onDiscard} className="btn-secondary text-[12px] py-1 px-2.5">
               Discard
             </button>
-            <button onClick={onAccept} className="btn-primary text-[11px] px-3 font-semibold bg-[#9333ea] hover:bg-[#a855f7] border border-[#a855f7] py-1">
-              Save & Overwrite
+            <button onClick={onAccept} className="btn-primary text-[12px] py-1 px-2.5">
+              <Check size={11} />
+              Accept
             </button>
           </div>
         </div>
       )}
 
       {/* Toolbar */}
-      <div
-        className="flex items-center justify-between px-8 py-3 flex-shrink-0"
-        style={{ borderBottom: '1px solid #1f1f1f' }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: '#404040' }}>
-            Processed Notes
+      <div className="flex items-center justify-between gap-3 px-8 py-2.5 shrink-0 border-b border-(--border-subtle)">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-(--text-faint)">
+            Processed
           </span>
           {saving && (
-             <span className="flex items-center gap-1 text-[11px]" style={{ color: '#525252' }}>
-               <Loader2 size={11} className="animate-spin" /> Saving…
-             </span>
+            <span className="flex items-center gap-1 text-[11px] text-(--text-faint)">
+              <Loader2 size={11} className="animate-spin" /> Saving...
+            </span>
           )}
           {saved && !saving && (
-            <span className="flex items-center gap-1 text-[11px]" style={{ color: '#22c55e' }}>
+            <span className="flex items-center gap-1 text-[11px] text-(--success)">
               <Check size={11} /> Saved
             </span>
           )}
         </div>
-        
-        {/* Toggle Mode */}
-        <div className="flex bg-[#111] p-1 rounded-lg border border-[#2a2a2a] items-center">
-          {/* Export & GitHub Actions */}
-          <div className="flex items-center gap-2">
-            {!editing && !isPendingMode && (
-              <>
-                <button
-                  onClick={exportToPDF}
-                  disabled={isExporting}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-[#737373] hover:text-[#d4d4d4]"
-                >
-                  {isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                  PDF
-                </button>
-                <button
-                  onClick={pushToGithub}
-                  disabled={isPushing}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-[#737373] hover:text-[#a78bfa]"
-                >
-                  {isPushing ? <Loader2 size={12} className="animate-spin" /> : <CloudUpload size={12} />}
-                  Push
-                </button>
-                <div className="w-px h-3 bg-[#2a2a2a] mx-1"></div>
-              </>
-            )}
 
-            <button
-              onClick={() => !isPendingMode && setEditing(!editing)}
-              disabled={isPendingMode}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[12px] font-medium transition-colors ${editing ? 'bg-[#2a2a2a] text-[#f5f5f5]' : 'text-[#737373] hover:text-[#d4d4d4]'} ${isPendingMode ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {editing ? (
-                <><Eye size={12} /> Preview</>
-              ) : (
-                <><Edit2 size={12} /> Edit</>
-              )}
-            </button>
-          </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {!editing && !isPendingMode && (
+            <>
+              <button
+                onClick={exportToPDF}
+                disabled={isExporting}
+                className="btn-ghost text-[12px] py-1 px-2"
+                title="Export as PDF"
+              >
+                {isExporting ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+                <span className="hidden sm:inline">PDF</span>
+              </button>
+              <button
+                onClick={pushToGithub}
+                disabled={isPushing}
+                className="btn-ghost text-[12px] py-1 px-2"
+                title="Push to GitHub"
+              >
+                {isPushing ? <Loader2 size={11} className="animate-spin" /> : <CloudUpload size={11} />}
+                <span className="hidden sm:inline">Push</span>
+              </button>
+              <div className="w-px h-4 bg-(--border-subtle) mx-1" />
+            </>
+          )}
+          <button
+            onClick={() => !isPendingMode && setEditing(!editing)}
+            disabled={isPendingMode}
+            className={editing ? 'btn-primary text-[12px] py-1 px-2.5' : 'btn-secondary text-[12px] py-1 px-2.5'}
+          >
+            {editing ? <><Eye size={11} /> Preview</> : <><Edit2 size={11} /> Edit</>}
+          </button>
         </div>
       </div>
 
       {/* Content */}
-      <div 
-        className="flex-1 overflow-y-auto px-10 py-6" 
+      <div
+        className="flex-1 overflow-y-auto px-10 py-6 bg-(--bg)"
         id="processed-markdown-content"
-        style={{ backgroundColor: '#0a0a0a' }}
       >
         {editing ? (
           <div className="flex-1 flex flex-col w-full" style={{ maxWidth: '980px', minHeight: 0 }}>

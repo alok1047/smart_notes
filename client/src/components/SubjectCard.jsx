@@ -1,64 +1,75 @@
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Trash2, FileText, Clock } from 'lucide-react';
+import { BookOpen, Trash2, ChevronRight } from 'lucide-react';
 
-const COLORS = [
-  { dot: '#8b5cf6', bg: 'rgba(124, 58, 237, 0.08)' },
-  { dot: '#06b6d4', bg: 'rgba(6, 182, 212, 0.08)' },
-  { dot: '#22c55e', bg: 'rgba(34, 197, 94, 0.08)' },
-  { dot: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)' },
-  { dot: '#f43f5e', bg: 'rgba(244, 63, 94, 0.08)' },
-  { dot: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)' },
-];
+const EMOJI_POOL = ['📚', '☕', '💡', '🧩', '🔬', '📊', '🎨', '⚡', '🌟', '🎯', '📐', '🧠', '🔧', '🚀', '📖'];
 
-const SubjectCard = ({ subject, onDelete }) => {
+const emojiFor = (name = '') => {
+  const hash = [...name].reduce((a, c) => a + c.charCodeAt(0), 0);
+  return EMOJI_POOL[hash % EMOJI_POOL.length];
+};
+
+const SubjectCard = ({ subject, onDelete, variant = 'grid' }) => {
   const navigate = useNavigate();
-  const color = COLORS[subject.name.length % COLORS.length];
 
   const fmt = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  if (variant === 'list') {
+    return (
+      <div
+        onClick={() => navigate(`/lectures/${subject._id}`)}
+        className="group lecture-item flex items-center gap-3"
+      >
+        <div className="w-8 h-8 rounded-md bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center shrink-0">
+          <BookOpen size={14} className="text-(--text-dim)" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13.5px] font-medium text-(--text) truncate">{subject.name}</p>
+          <p className="text-[11.5px] text-(--text-faint) truncate mt-0.5">
+            {subject.lectureCount} {subject.lectureCount === 1 ? 'lecture' : 'lectures'} · created {fmt(subject.createdAt)}
+          </p>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(subject._id, subject.name); }}
+          className="text-(--text-faint) hover:text-(--danger) opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-(--surface-hover)"
+        >
+          <Trash2 size={13} />
+        </button>
+        <ChevronRight size={15} className="text-(--text-faint) group-hover:text-(--text-dim) shrink-0 transition-colors" />
+      </div>
+    );
+  }
 
   return (
     <div
       onClick={() => navigate(`/lectures/${subject._id}`)}
-      className="card group relative cursor-pointer"
+      className="card group cursor-pointer flex flex-col gap-6 relative overflow-hidden !p-5"
     >
-      {/* Color dot + icon */}
-      <div className="flex items-start justify-between mb-5">
-        <div
-          className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
-          style={{ background: color.bg }}
-        >
-          <BookOpen size={20} style={{ color: color.dot }} />
+      <div className="flex items-start justify-between">
+        <div className="w-10 h-10 rounded-xl bg-(--surface-hover) border border-(--border-subtle) flex items-center justify-center text-[20px] shadow-inner">
+          {emojiFor(subject.name)}
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(subject._id, subject.name); }}
-          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-[#404040] hover:text-[#f43f5e] hover:bg-[#1f1f1f] transition-all duration-150"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
-
-      {/* Name */}
-      <h3 className="text-[16px] font-semibold text-[#e5e5e5] mb-2 leading-snug pr-2">
-        {subject.name}
-      </h3>
-
-      {/* Meta */}
-      <div className="flex items-center gap-4 mt-4">
-        <div className="flex items-center gap-1.5 text-[#525252]">
-          <FileText size={12} />
-          <span className="text-[12px]">{subject.lectureCount} lectures</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-[#525252]">
-          <Clock size={12} />
-          <span className="text-[12px]">{fmt(subject.createdAt)}</span>
+        <div className="flex flex-col items-end gap-1.5 pt-1">
+          <span className="text-[11px] font-semibold text-(--text-faint) tracking-wide">
+            {fmt(subject.createdAt)}
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(subject._id, subject.name); }}
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-(--text-faint) hover:text-(--danger) hover:bg-red-500/10 transition-all"
+            title="Delete subject"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
       </div>
 
-      {/* Active indicator */}
-      <div
-        className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        style={{ background: color.dot }}
-      />
+      <div className="mt-1">
+        <h3 className="text-[15px] font-bold text-(--text) leading-tight mb-1 group-hover:text-(--accent-text) transition-colors line-clamp-2">
+          {subject.name}
+        </h3>
+        <p className="text-[12px] font-medium text-(--text-dim)">
+          {subject.lectureCount} <span className="opacity-70">{subject.lectureCount === 1 ? 'lecture' : 'lectures'}</span>
+        </p>
+      </div>
     </div>
   );
 };
