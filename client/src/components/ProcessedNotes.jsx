@@ -26,16 +26,27 @@ const ProcessedNotes = ({
   const [isPushing, setIsPushing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Sync incoming content on load, preferring unsaved local drafts
+  // Sync incoming content — clear stale drafts when fresh AI content arrives
   useEffect(() => {
     if (!lectureId) return;
+    
+    // If we were just streaming, the new content is authoritative — clear any old draft
+    if (isStreaming) {
+      // While streaming, always show the live streaming content
+      setDraft(content || '');
+      return;
+    }
+    
     const localDraft = localStorage.getItem(`notes_draft_${lectureId}`);
     if (localDraft && localDraft !== content) {
+      // Only use localStorage draft if it's different from what the server has
+      // AND the content hasn't just been updated by streaming
       setDraft(localDraft);
     } else {
       setDraft(content || '');
+      localStorage.removeItem(`notes_draft_${lectureId}`);
     }
-  }, [content, lectureId]);
+  }, [content, lectureId, isStreaming]);
 
   // Save to localStorage as a fallback on change
   useEffect(() => {

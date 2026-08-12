@@ -16,47 +16,26 @@ router.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'Subject ID and query are required' });
     }
 
-    // 1. Generate embedding for the question
-    const queryEmbedding = await generateEmbedding(query, apiKey);
-
-    // 2. Fetch all lectures for this subject and filter valid embeddings in memory
-    const allLectures = await Lecture.find({ subjectId });
-    const lectures = allLectures.filter(l => l.embedding && Array.isArray(l.embedding) && l.embedding.length > 0);
+    // 1. Fetch all lectures for this subject that have processed notes
+    const allLectures = await Lecture.find({ subjectId }).select('title processedNotes');
+    const lectures = allLectures.filter(l => l.processedNotes && l.processedNotes.trim().length > 0);
 
     if (lectures.length === 0) {
-      return res.json({ answer: 'I cannot answer this because you have not saved or processed any notes for this subject yet.' });
+      return res.json({ answer: 'I cannot answer this because you have not saved or processed any notes for this subject yet. Process some notes first, then try chatting!' });
     }
 
-    // 3. Compute cosine similarity for each lecture
-    const scoredLectures = lectures.map(lecture => {
-      const score = cosineSimilarity(queryEmbedding, lecture.embedding);
-      return { lecture, score };
-    });
-
-    // 4. Sort by score descending and take the top 3
-    scoredLectures.sort((a, b) => b.score - a.score);
-    const topLectures = scoredLectures.slice(0, 3);
-
-    // 5. Combine the notes into a single context block
+    // 2. Combine all notes into a single context block
     let contextNotes = '';
-    topLectures.forEach((item, index) => {
-      // Only include if there is some minimal similarity to avoid polluting context
-      if (item.score > 0.3) {
-        contextNotes += `\n--- Lecture: ${item.lecture.title} ---\n${item.lecture.processedNotes}\n`;
-      }
+    lectures.forEach(lecture => {
+      contextNotes += `\n--- Lecture: ${lecture.title} ---\n${lecture.processedNotes}\n`;
     });
 
-    if (!contextNotes.trim()) {
-      return res.json({ answer: 'I could not find any information in your notes related to that question.' });
-    }
-
-    // 6. Generate the final answer using the context
+    // 3. Generate the final answer using the user's chosen AI provider
     const answer = await generateChatResponse(query, contextNotes, aiProvider, apiKey);
 
     res.json({ answer });
   } catch (error) {
-    console.error('Error in RAG chat:', error.message || error);
-    if (error.stack) console.error(error.stack);
+    console.error('Error in chat:', error.message || error);
     res.status(500).json({ error: error.message || 'Failed to generate answer from notes.' });
   }
 });
