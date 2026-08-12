@@ -121,7 +121,7 @@ export const getRecentLectures = async () => {
   return res.data;
 };
 
-export const chatWithNotes = async (subjectId, question, apiKey = '') => {
-  const res = await api.post('/ai/chat', { subjectId, question, apiKey });
+export const chatWithNotes = async (subjectId, query, aiProvider, apiKey = '') => {
+  const res = await api.post('/ai/chat', { subjectId, query, aiProvider, apiKey });
   return res.data;
 };

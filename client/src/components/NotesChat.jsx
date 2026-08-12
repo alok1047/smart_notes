@@ -32,7 +32,7 @@ const NotesChat = ({ isOpen, onClose, subjectId }) => {
       const settings = getAISettings();
       const apiKey = settings.provider === 'openai' ? settings.openaiKey : (settings.provider === 'groq' ? settings.groqKey : settings.geminiKey);
       
-      const res = await chatWithNotes(subjectId, userMsg, apiKey);
+      const res = await chatWithNotes(subjectId, userMsg, settings.provider, apiKey);
       setMessages(prev => [...prev, { role: 'ai', content: res.answer }]);
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message || "Sorry, I ran into an error while checking your notes.";
