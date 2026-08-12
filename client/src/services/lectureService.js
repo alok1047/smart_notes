@@ -43,7 +43,8 @@ export const processNotes = async (lectureId, aiProvider, apiKey, options = {}) 
 export const streamProcessNotes = async (lectureId, aiProvider, apiKey, options, onChunk, onComplete, onError) => {
   try {
     const token = await getIdToken();
-    const response = await fetch(`/api/lectures/${lectureId}/process-stream`, {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${baseUrl}/lectures/${lectureId}/process-stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

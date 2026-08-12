@@ -85,7 +85,8 @@ const NotesEditorPage = () => {
       try {
         setLoading(true);
         const token = await getIdToken();
-        const res = await fetch(`/api/lectures/single/${lectureId}`, {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+        const res = await fetch(`${baseUrl}/lectures/single/${lectureId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
