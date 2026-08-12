@@ -21,6 +21,19 @@ const parseCommands = (rawNotes) => {
   return commands;
 };
 
+// Pre-clean raw notes: strip leading // comment markers so AI treats them as text
+const cleanRawNotes = (rawNotes) => {
+  return rawNotes.split('\n').map(line => {
+    // Strip leading // markers but preserve //ai commands
+    if (line.match(/^\s*\/\/ai\s/i)) return line; // keep //ai commands intact
+    // Strip //? or //! or //* or // followed by content
+    const cleaned = line.replace(/^\s*\/\/[?!*]?\s?/, '');
+    // If the line was ONLY '//' with nothing after, return empty
+    if (line.match(/^\s*\/\/\s*$/) || line.match(/^\s*\/\/[-=]+\s*$/)) return '';
+    return cleaned;
+  }).join('\n');
+};
+
 const buildPrompt = (rawNotes, commands, options = {}) => {
   let specialInstructions = '';
 
@@ -59,7 +72,10 @@ CRITICAL HINGLISH RULES:
 - Keep the tone natural, like how a student casually writes revision notes mixed with English technical terms.`;
   }
 
-  const prompt = `You are an Advanced AI Lecture Formatting Assistant. You structure messy student notes into clean, revision-ready Markdown with diagrams, images, tables, and code blocks.
+  // Clean the raw notes to remove // comment prefixes
+  const cleanedNotes = cleanRawNotes(rawNotes);
+
+  const systemPrompt = `You are an Advanced AI Lecture Formatting Assistant. You structure messy student notes into clean, revision-ready Markdown with diagrams, images, tables, and code blocks.
 
 LANGUAGE TARGET: ${languageTarget}
 
@@ -71,6 +87,8 @@ GUIDELINES:
 ${keyPointsText}
 ${summaryText}
 7. ${strictnessText}
+8. PRESERVE CODE: If the student includes functional programming code (loops, functions, declarations), PRESERVE IT ENTIRELY in fenced code blocks (e.g. \`\`\`java).
+9. COMPLETENESS: You MUST cover ALL content from the notes. Do NOT skip, summarize away, or omit any topic. Every single point the student wrote must appear in your output.
 
 SPECIAL DIRECTIVE HANDLERS:
 
@@ -108,13 +126,15 @@ OTHER DIRECTIVES:
 
 ${specialInstructions}
 
-Output MUST be clean, valid Markdown. All diagrams must use \`\`\`mermaid fenced blocks. All images must use standard Markdown image syntax ![alt](url).
+Output MUST be clean, valid Markdown. All diagrams must use \`\`\`mermaid fenced blocks. All images must use standard Markdown image syntax ![alt](url).`;
+
+  const userPrompt = `Here are my messy lecture notes. Structure them into clean, complete revision-ready Markdown. Cover EVERY point I wrote — do not skip anything.
 
 --- RAW NOTES START ---
-${rawNotes}
+${cleanedNotes}
 --- RAW NOTES END ---`;
 
-  return prompt;
+  return { system: systemPrompt, user: userPrompt };
 };
 
 const processWithGemini = async (prompt, apiKey) => {
@@ -122,8 +142,9 @@ const processWithGemini = async (prompt, apiKey) => {
   if (!key) throw new Error('Missing Gemini API Key');
 
   const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  const result = await model.generateContent(prompt);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const fullPrompt = typeof prompt === 'object' ? `${prompt.system}\n\n${prompt.user}` : prompt;
+  const result = await model.generateContent(fullPrompt);
   return result.response.text();
 };
 
@@ -132,8 +153,9 @@ const streamProcessGemini = async (prompt, apiKey, onChunk) => {
   if (!key) throw new Error('Missing Gemini API Key');
 
   const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  const result = await model.generateContentStream(prompt);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const fullPrompt = typeof prompt === 'object' ? `${prompt.system}\n\n${prompt.user}` : prompt;
+  const result = await model.generateContentStream(fullPrompt);
   let fullText = '';
   for await (const chunk of result.stream) {
     const text = chunk.text();
@@ -150,8 +172,11 @@ const processWithOpenAI = async (prompt, apiKey) => {
   if (!key) throw new Error('Missing OpenAI API Key');
 
   const openai = new OpenAI({ apiKey: key });
+  const messages = typeof prompt === 'object'
+    ? [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }]
+    : [{ role: 'user', content: prompt }];
   const completion = await openai.chat.completions.create({
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     model: 'gpt-4o-mini',
   });
   return completion.choices[0].message.content;
@@ -162,8 +187,11 @@ const streamProcessOpenAI = async (prompt, apiKey, onChunk) => {
   if (!key) throw new Error('Missing OpenAI API Key');
 
   const openai = new OpenAI({ apiKey: key });
+  const messages = typeof prompt === 'object'
+    ? [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }]
+    : [{ role: 'user', content: prompt }];
   const stream = await openai.chat.completions.create({
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     model: 'gpt-4o-mini',
     stream: true,
   });
@@ -183,9 +211,13 @@ const processWithGroq = async (prompt, apiKey) => {
   if (!key) throw new Error('Missing Groq API Key');
 
   const groq = new Groq({ apiKey: key });
+  const messages = typeof prompt === 'object'
+    ? [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }]
+    : [{ role: 'user', content: prompt }];
   const completion = await groq.chat.completions.create({
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     model: 'llama-3.3-70b-versatile',
+    max_tokens: 8000,
   });
   return completion.choices[0].message.content;
 };
@@ -195,10 +227,14 @@ const streamProcessGroq = async (prompt, apiKey, onChunk) => {
   if (!key) throw new Error('Missing Groq API Key');
 
   const groq = new Groq({ apiKey: key });
+  const messages = typeof prompt === 'object'
+    ? [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }]
+    : [{ role: 'user', content: prompt }];
   const stream = await groq.chat.completions.create({
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     model: 'llama-3.3-70b-versatile',
     stream: true,
+    max_tokens: 8000,
   });
   let fullText = '';
   for await (const chunk of stream) {
@@ -266,7 +302,7 @@ const extractTextFromImage = async (buffer, mimeType, apiKey) => {
   if (!key) throw new Error('Missing Gemini API Key for document/image processing');
 
   const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const filePart = {
     inlineData: {
       data: buffer.toString('base64'),
