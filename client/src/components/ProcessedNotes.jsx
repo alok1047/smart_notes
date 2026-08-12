@@ -1,60 +1,67 @@
 import { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Sparkles, Edit2, Check, Eye, Loader2, Download, CloudUpload } from 'lucide-react';
+import {
+  Sparkles,
+  Check,
+  Loader2,
+  Download,
+  CloudUpload,
+  Save,
+} from 'lucide-react';
 import html2pdf from 'html2pdf.js';
-import HighlightedEditor from './HighlightedEditor';
 import { getGithubSettings } from '../utils/githubSettings';
-import CodeBlock from './CodeBlock';
-import { parseCustomSyntax, parseCustomSyntaxBlocks } from '../utils/markdownUtils';
+import TiptapEditor from './TiptapEditor';
 
-const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId, onSave }) => {
-  const [editing, setEditing] = useState(false);
+const ProcessedNotes = ({
+  content,
+  isPendingMode,
+  isStreaming,
+  onAccept,
+  onDiscard,
+  lectureId,
+  onSave,
+}) => {
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Sync incoming content on load, preferring unsaved local drafts
   useEffect(() => {
-    if (!editing) {
+    if (!lectureId) return;
+    const localDraft = localStorage.getItem(`notes_draft_${lectureId}`);
+    if (localDraft && localDraft !== content) {
+      setDraft(localDraft);
+    } else {
       setDraft(content || '');
     }
-  }, [content, editing]);
+  }, [content, lectureId]);
 
+  // Save to localStorage as a fallback on change
   useEffect(() => {
-    if (!editing) return;
-    if (draft === content) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        setSaving(true);
-        await onSave(draft);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2500);
-      } catch (e) {
-        console.error('Auto-save failed:', e);
-      } finally {
-        setSaving(false);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [draft, editing, content, onSave]);
+    if (!lectureId || !draft) return;
+    if (draft !== content) {
+      localStorage.setItem(`notes_draft_${lectureId}`, draft);
+    } else {
+      localStorage.removeItem(`notes_draft_${lectureId}`);
+    }
+  }, [draft, content, lectureId]);
 
   const exportToPDF = async () => {
     if (!draft) return;
+
     try {
       setIsExporting(true);
-      const element = document.getElementById('processed-markdown-content');
+      const element = document.querySelector('.tiptap'); // Tiptap editor class
+
       if (!element) return;
 
       const opt = {
-        margin:       10,
-        filename:     'structured_notes.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: 'structured_notes.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       };
 
       await html2pdf().from(element).set(opt).save();
@@ -69,8 +76,9 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
   const pushToGithub = async () => {
     if (!draft) return;
     const { token, repo } = getGithubSettings();
+
     if (!token || !repo) {
-      alert('Please configure your GitHub Personal Access Token and Repository in the Settings (Sidebar).');
+      alert('Please configure your GitHub Personal Access Token and Repository in the Settings.');
       return;
     }
 
@@ -78,18 +86,16 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
       setIsPushing(true);
       const filename = `notes_${lectureId}.md`;
       const path = `notes/${filename}`;
-
       const getFileRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-        headers: { Authorization: `token ${token}` }
+        headers: { Authorization: `token ${token}` },
       });
       const fileData = getFileRes.ok ? await getFileRes.json() : null;
-
-      const contentBase64 = btoa(unescape(encodeURIComponent(parseCustomSyntax(draft))));
+      const contentBase64 = btoa(unescape(encodeURIComponent(draft)));
 
       const body = {
         message: `docs: syncing structured lecture notes ${lectureId}`,
         content: contentBase64,
-        ...(fileData && fileData.sha ? { sha: fileData.sha } : {})
+        ...(fileData?.sha ? { sha: fileData.sha } : {}),
       };
 
       const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
@@ -98,12 +104,10 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
           Authorization: `token ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
-      if (!putRes.ok) {
-        throw new Error(await putRes.text());
-      }
+      if (!putRes.ok) throw new Error(await putRes.text());
       alert('Successfully pushed to GitHub!');
     } catch (err) {
       console.error(err);
@@ -113,7 +117,8 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
     }
   };
 
-  if (!content?.trim() && !editing) {
+  /* Empty state */
+  if (!content?.trim() && !draft.trim()) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-20 px-8">
         <div className="w-12 h-12 rounded-xl bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center mb-4">
@@ -128,10 +133,10 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden animate-fade-in">
+    <div className="h-full w-full min-w-0 flex flex-col overflow-hidden animate-fade-in relative">
       {/* Pending banner */}
       {isPendingMode && (
-        <div className="flex items-center justify-between gap-4 px-8 py-2.5 shrink-0 animate-fade-in bg-(--accent-soft) border-b border-(--border-subtle)">
+        <div className="flex items-center justify-between gap-4 px-6 sm:px-8 py-3 shrink-0 animate-fade-in bg-(--accent-soft) border-b border-(--border-subtle)">
           <div className="flex items-center gap-2.5 min-w-0">
             <Sparkles size={14} className="text-(--accent-text) shrink-0" />
             <div className="min-w-0">
@@ -140,37 +145,42 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={onDiscard} className="btn-secondary text-[12px] py-1 px-2.5">
-              Discard
-            </button>
-            <button onClick={onAccept} className="btn-primary text-[12px] py-1 px-2.5">
-              <Check size={11} />
-              Accept
-            </button>
+            <button onClick={onDiscard} className="btn-secondary text-[12px] py-1 px-2.5">Discard</button>
+            <button onClick={onAccept} className="btn-primary text-[12px] py-1 px-2.5"><Check size={11} />Accept</button>
           </div>
         </div>
       )}
 
+      {/* Live Streaming Banner */}
+      {isStreaming && (
+        <div className="flex items-center gap-2.5 px-6 sm:px-8 py-2.5 bg-blue-500/10 border-b border-blue-500/20 text-blue-400 text-[12px] font-medium animate-pulse shrink-0">
+          <Sparkles size={14} className="animate-spin" />
+          <span>⚡ AI Generating Notes Live...</span>
+        </div>
+      )}
+
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 px-8 py-2.5 shrink-0 border-b border-(--border-subtle)">
+      <div className="flex items-center justify-between gap-3 px-6 sm:px-8 py-3 shrink-0 border-b border-(--border-subtle)">
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-(--text-faint)">
-            Processed
+            Processed Notes
           </span>
           {saving && (
             <span className="flex items-center gap-1 text-[11px] text-(--text-faint)">
-              <Loader2 size={11} className="animate-spin" /> Saving...
+              <Loader2 size={11} className="animate-spin" />
+              Saving...
             </span>
           )}
           {saved && !saving && (
             <span className="flex items-center gap-1 text-[11px] text-(--success)">
-              <Check size={11} /> Saved
+              <Check size={11} />
+              Saved
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {!editing && !isPendingMode && (
+          {!isPendingMode && (
             <>
               <button
                 onClick={exportToPDF}
@@ -190,44 +200,40 @@ const ProcessedNotes = ({ content, isPendingMode, onAccept, onDiscard, lectureId
                 {isPushing ? <Loader2 size={11} className="animate-spin" /> : <CloudUpload size={11} />}
                 <span className="hidden sm:inline">Push</span>
               </button>
-              <div className="w-px h-4 bg-(--border-subtle) mx-1" />
+              <button
+                onClick={async () => {
+                  if (saving) return;
+                  try {
+                    setSaving(true);
+                    await onSave(draft);
+                    localStorage.removeItem(`notes_draft_${lectureId}`);
+                    setSaved(true);
+                    setTimeout(() => setSaved(false), 2500);
+                  } catch (e) {
+                    console.error(e);
+                    alert('Failed to save to database');
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving || !draft || draft === content}
+                className="btn-primary text-[12px] py-1 px-2 ml-1"
+                title="Save to Database"
+              >
+                {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                <span className="hidden sm:inline">Save</span>
+              </button>
             </>
           )}
-          <button
-            onClick={() => !isPendingMode && setEditing(!editing)}
-            disabled={isPendingMode}
-            className={editing ? 'btn-primary text-[12px] py-1 px-2.5' : 'btn-secondary text-[12px] py-1 px-2.5'}
-          >
-            {editing ? <><Eye size={11} /> Preview</> : <><Edit2 size={11} /> Edit</>}
-          </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div
-        className="flex-1 overflow-y-auto px-10 py-6 bg-(--bg)"
-        id="processed-markdown-content"
-      >
-        {editing ? (
-          <div className="flex-1 flex flex-col w-full" style={{ maxWidth: '980px', minHeight: 0 }}>
-            <HighlightedEditor
-              value={draft}
-              onChange={setDraft}
-              placeholder="Edit your processed markdown notes directly here..."
-              autoFocus
-            />
-          </div>
-        ) : (
-          <div className="markdown-body" style={{ maxWidth: '980px' }}>
-            {parseCustomSyntaxBlocks(content).map((block, i) => (
-              block.type === 'code' ? (
-                <CodeBlock key={i} content={block.content} language={block.language} />
-              ) : (
-                <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
-              )
-            ))}
-          </div>
-        )}
+      {/* Tiptap Editor Content */}
+      <div className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto bg-(--bg) px-2 sm:px-4 lg:px-6 py-6 tiptap-container">
+        <TiptapEditor 
+          content={draft} 
+          onChange={setDraft} 
+        />
       </div>
     </div>
   );

@@ -17,20 +17,20 @@ const SubjectCard = ({ subject, onDelete, variant = 'grid' }) => {
     return (
       <div
         onClick={() => navigate(`/lectures/${subject._id}`)}
-        className="group lecture-item flex items-center gap-3"
+        className="group lecture-item flex items-center gap-3 cursor-pointer"
       >
-        <div className="w-8 h-8 rounded-md bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center shrink-0">
-          <BookOpen size={14} className="text-(--text-dim)" strokeWidth={1.75} />
+        <div className="w-7 h-7 rounded bg-(--surface-hover) flex items-center justify-center shrink-0 text-[14px]">
+          {emojiFor(subject.name)}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13.5px] font-medium text-(--text) truncate">{subject.name}</p>
-          <p className="text-[11.5px] text-(--text-faint) truncate mt-0.5">
-            {subject.lectureCount} {subject.lectureCount === 1 ? 'lecture' : 'lectures'} · created {fmt(subject.createdAt)}
+          <p className="text-[13px] font-medium text-(--text) truncate">{subject.name}</p>
+          <p className="text-[11px] text-(--text-faint) truncate">
+            {subject.lectureCount} {subject.lectureCount === 1 ? 'lecture' : 'lectures'} · {fmt(subject.createdAt)}
           </p>
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(subject._id, subject.name); }}
-          className="text-(--text-faint) hover:text-(--danger) opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-(--surface-hover)"
+          className="opacity-0 group-hover:opacity-100 p-1 rounded text-(--text-faint) hover:text-(--danger) hover:bg-(--danger-soft) transition-all"
         >
           <Trash2 size={13} />
         </button>
@@ -42,20 +42,17 @@ const SubjectCard = ({ subject, onDelete, variant = 'grid' }) => {
   return (
     <div
       onClick={() => navigate(`/lectures/${subject._id}`)}
-      className="card group cursor-pointer flex flex-col gap-6 relative overflow-hidden !p-5"
+      className="card group cursor-pointer flex flex-col gap-3"
     >
       <div className="flex items-start justify-between">
-        <div className="w-10 h-10 rounded-xl bg-(--surface-hover) border border-(--border-subtle) flex items-center justify-center text-[20px] shadow-inner">
+        <div className="w-9 h-9 rounded-lg bg-(--surface-hover) flex items-center justify-center text-[18px]">
           {emojiFor(subject.name)}
         </div>
         <div className="flex flex-col items-end gap-1.5 pt-1">
-          <span className="text-[11px] font-semibold text-(--text-faint) tracking-wide">
-            {fmt(subject.createdAt)}
-          </span>
+          <span className="text-[11px] text-(--text-faint)">{fmt(subject.createdAt)}</span>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(subject._id, subject.name); }}
-            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-(--text-faint) hover:text-(--danger) hover:bg-red-500/10 transition-all"
-            title="Delete subject"
+            className="opacity-0 group-hover:opacity-100 p-1 rounded text-(--text-faint) hover:text-(--danger) hover:bg-(--danger-soft) transition-all"
           >
             <Trash2 size={13} />
           </button>
@@ -63,11 +60,9 @@ const SubjectCard = ({ subject, onDelete, variant = 'grid' }) => {
       </div>
 
       <div className="mt-1">
-        <h3 className="text-[15px] font-bold text-(--text) leading-tight mb-1 group-hover:text-(--accent-text) transition-colors line-clamp-2">
-          {subject.name}
-        </h3>
-        <p className="text-[12px] font-medium text-(--text-dim)">
-          {subject.lectureCount} <span className="opacity-70">{subject.lectureCount === 1 ? 'lecture' : 'lectures'}</span>
+        <h3 className="text-[14px] font-semibold text-(--text) leading-tight line-clamp-2">{subject.name}</h3>
+        <p className="mt-1 text-[12px] text-(--text-dim)">
+          {subject.lectureCount} {subject.lectureCount === 1 ? 'lecture' : 'lectures'}
         </p>
       </div>
     </div>

@@ -1,15 +1,35 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
 import ProcessedNotes from '../components/ProcessedNotes';
 import RevisionMode from '../components/RevisionMode';
 import HighlightedEditor from '../components/HighlightedEditor';
-import { saveRawNotes, saveProcessedNotes, processNotes } from '../services/lectureService';
+import ProcessSettingsModal from '../components/ProcessSettingsModal';
+import NotesChat from '../components/NotesChat';
+import {
+  saveRawNotes,
+  saveProcessedNotes,
+  processNotes,
+  streamProcessNotes,
+  uploadLectureFile,
+} from '../services/lectureService';
 import { getAISettings } from '../utils/aiSettings';
 import { getIdToken } from '../services/firebase';
+
 import {
-  ArrowLeft, Save, Sparkles, Eye, Edit3, Zap,
-  Loader2, CheckCircle2, AlertCircle, Clock, X
+  ArrowLeft,
+  Save,
+  Sparkles,
+  Eye,
+  Edit3,
+  Zap,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  X,
+  FileUp,
+  UploadCloud,
+  MessageCircle,
 } from 'lucide-react';
 
 const TABS = [
@@ -25,24 +45,40 @@ const NotesEditorPage = () => {
   const [lecture, setLecture] = useState(null);
   const [subject, setSubject] = useState(null);
   const [rawNotes, setRawNotes] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showProcessSettings, setShowProcessSettings] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   const [saveStatus, setSaveStatus] = useState(null);
   const [processError, setProcessError] = useState('');
+
   const [pendingNotes, setPendingNotes] = useState(null);
   const [activeTab, setActiveTab] = useState('processed');
   const [lastSaved, setLastSaved] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+
   const saveRef = useRef(null);
+  const fileInputRef = useRef(null);
+
   const [visible, setVisible] = useState(true);
   const [aiConfig, setAiConfig] = useState(getAISettings());
 
+  /* ---------------- AI SETTINGS ---------------- */
+
   useEffect(() => {
-    const handleSettingsChange = () => setAiConfig(getAISettings());
+    const handleSettingsChange = () => {
+      setAiConfig(getAISettings());
+    };
     window.addEventListener('aiSettingsChanged', handleSettingsChange);
     return () => window.removeEventListener('aiSettingsChanged', handleSettingsChange);
   }, []);
+
+  /* ---------------- LOAD LECTURE ---------------- */
 
   useEffect(() => {
     (async () => {
@@ -52,11 +88,13 @@ const NotesEditorPage = () => {
         const res = await fetch(`/api/lectures/single/${lectureId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         if (res.ok) {
           const data = await res.json();
           setLecture(data.lecture);
           setSubject(data.subject);
           setRawNotes(data.lecture.rawNotes || '');
+
           if (!data.lecture.processedNotes?.trim()) {
             setActiveTab('raw');
           }
@@ -69,9 +107,12 @@ const NotesEditorPage = () => {
     })();
   }, [lectureId]);
 
+  /* ---------------- AUTO SAVE ---------------- */
+
   const debouncedSave = useCallback(
     (notes) => {
       if (saveRef.current) clearTimeout(saveRef.current);
+
       saveRef.current = setTimeout(async () => {
         try {
           setSaving(true);
@@ -96,8 +137,11 @@ const NotesEditorPage = () => {
     debouncedSave(text);
   };
 
+  /* ---------------- MANUAL SAVE ---------------- */
+
   const handleManualSave = async () => {
     if (saveRef.current) clearTimeout(saveRef.current);
+
     try {
       setSaving(true);
       const r = await saveRawNotes(lectureId, rawNotes);
@@ -112,30 +156,89 @@ const NotesEditorPage = () => {
     }
   };
 
+  /* ---------------- PROCESSED NOTES ---------------- */
+
   const handleSaveProcessed = async (newContent) => {
     const r = await saveProcessedNotes(lectureId, newContent);
     setLecture(r.lecture);
   };
 
-  const handleProcess = async () => {
-    if (!rawNotes.trim()) { setProcessError('Write some notes first.'); return; }
+  /* ---------------- STREAMING PROCESS AI ---------------- */
+
+  const handleProcessStream = async (options) => {
+    setShowProcessSettings(false);
+    if (!rawNotes.trim()) {
+      setProcessError('Write some notes first.');
+      return;
+    }
+
     try {
       setProcessing(true);
+      setStreaming(true);
       setProcessError('');
+      setStreamingText('');
+
       if (saveRef.current) clearTimeout(saveRef.current);
       await saveRawNotes(lectureId, rawNotes);
-      const r = await processNotes(lectureId, aiConfig.provider, aiConfig.apiKey);
-      setLecture(r.lecture);
-      if (r.processedNotes) {
-        setPendingNotes(r.processedNotes);
-      }
+
       switchTab('processed');
+
+      await streamProcessNotes(
+        lectureId,
+        aiConfig.provider,
+        aiConfig.apiKey,
+        options,
+        (chunk, accumulatedText) => {
+          setStreamingText(accumulatedText);
+        },
+        (finalText) => {
+          setLecture(prev => ({ ...prev, processedNotes: finalText }));
+          setPendingNotes(null);
+          setStreamingText('');
+          setStreaming(false);
+          setProcessing(false);
+        },
+        (err) => {
+          setProcessError(err.message || 'AI streaming failed.');
+          setStreaming(false);
+          setProcessing(false);
+        }
+      );
     } catch (e) {
-      setProcessError(e.response?.data?.error || 'AI processing failed. Please try again.');
-    } finally {
+      setProcessError(e.message || 'AI processing failed.');
+      setStreaming(false);
       setProcessing(false);
     }
   };
+
+  /* ---------------- FILE IMPORT (PDF/IMAGE OCR) ---------------- */
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingFile(true);
+      setProcessError('');
+      const data = await uploadLectureFile(lectureId, file, aiConfig.apiKey);
+      if (data.extractedText) {
+        const updated = rawNotes
+          ? `${rawNotes}\n\n--- Imported Slide (${data.filename}) ---\n${data.extractedText}`
+          : data.extractedText;
+
+        setRawNotes(updated);
+        debouncedSave(updated);
+        setActiveTab('raw');
+      }
+    } catch (err) {
+      setProcessError(err.response?.data?.error || err.message || 'File import failed.');
+    } finally {
+      setUploadingFile(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  /* ---------------- ACCEPT NOTES ---------------- */
 
   const acceptPendingNotes = async () => {
     if (!pendingNotes) return;
@@ -150,6 +253,8 @@ const NotesEditorPage = () => {
     }
   };
 
+  /* ---------------- TAB SWITCH ---------------- */
+
   const switchTab = (id) => {
     if (id === activeTab) return;
     setVisible(false);
@@ -158,6 +263,8 @@ const NotesEditorPage = () => {
       setVisible(true);
     }, 150);
   };
+
+  /* ---------------- KEYBOARD SAVE ---------------- */
 
   useEffect(() => {
     const kd = (e) => {
@@ -170,24 +277,33 @@ const NotesEditorPage = () => {
     return () => window.removeEventListener('keydown', kd);
   }, [rawNotes, activeTab]);
 
-  useEffect(() => () => { if (saveRef.current) clearTimeout(saveRef.current); }, []);
+  /* ---------------- CLEANUP ---------------- */
+
+  useEffect(() => {
+    return () => {
+      if (saveRef.current) clearTimeout(saveRef.current);
+    };
+  }, []);
 
   const fmtTime = (d) =>
     d?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+  /* ---------------- LOADING ---------------- */
+
   if (loading) {
     return (
       <div className="app-layout">
-        <Sidebar collapsed onToggle={() => {}} onNewSubject={() => {}} />
-        <div className="main-content sidebar-collapsed">
-          <div className="topbar">
+        <div className="main-content">
+          <div className="topbar px-5">
             <div className="skeleton h-5 w-64 rounded" />
             <div className="ml-auto flex gap-2">
               <div className="skeleton h-8 w-24 rounded-md" />
               <div className="skeleton h-8 w-32 rounded-md" />
             </div>
           </div>
-          <div className="skeleton m-4 rounded-lg flex-1" />
+          <div className="flex-1 p-6">
+            <div className="skeleton w-full h-full rounded-lg" />
+          </div>
         </div>
       </div>
     );
@@ -195,30 +311,40 @@ const NotesEditorPage = () => {
 
   return (
     <div className="app-layout">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(c => !c)}
-        onNewSubject={() => navigate('/dashboard')}
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept=".pdf,image/*"
+        className="hidden"
       />
 
-      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <header className="topbar" style={{ gap: '12px' }}>
-          <div className="flex items-center gap-2 shrink-0 min-w-0">
+      <div className="main-content min-w-0">
+        {/* TOP BAR */}
+        <header className="topbar px-4 sm:px-6">
+          {/* LEFT */}
+          <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => subject && navigate(`/lectures/${subject._id}`)}
               className="btn-ghost px-2 py-1.5 shrink-0"
+              title="Back to lectures"
             >
               <ArrowLeft size={14} />
             </button>
-            <div className="min-w-0 hidden sm:block">
-              <p className="text-[13px] font-medium text-(--text) truncate leading-none">
+
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-(--text) truncate leading-tight">
                 {lecture?.title?.trim() || `Lecture ${lecture?.lectureNumber}`}
               </p>
-              <p className="text-[11px] text-(--text-faint) truncate mt-0.5">{subject?.name}</p>
+              <p className="text-[11px] text-(--text-faint) truncate mt-0.5">
+                {subject?.name}
+              </p>
             </div>
           </div>
 
-          <div className="flex-1 flex justify-center">
+          {/* CENTER TABS */}
+          <div className="flex-1 flex justify-center px-4">
             <div className="pill-tabs">
               {TABS.map(({ id, label, icon: Icon }) => (
                 <button
@@ -233,8 +359,27 @@ const NotesEditorPage = () => {
             </div>
           </div>
 
+          {/* RIGHT */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden sm:flex items-center gap-1.5">
+            {/* FILE IMPORT BUTTON */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile}
+              className="btn-secondary text-[12px] flex items-center gap-1.5"
+              title="Import PDF Slide or Whiteboard Photo"
+            >
+              {uploadingFile ? (
+                <Loader2 size={12} className="animate-spin text-[#2383e2]" />
+              ) : (
+                <FileUp size={13} className="text-[#2383e2]" />
+              )}
+              <span className="hidden md:inline">
+                {uploadingFile ? 'Extracting...' : 'Import Slide'}
+              </span>
+            </button>
+
+            {/* SAVE STATUS */}
+            <div className="hidden md:flex items-center gap-1.5 min-w-[70px] justify-end">
               {saving && <Loader2 size={12} className="animate-spin text-(--text-faint)" />}
               {saveStatus === 'saved' && !saving && (
                 <span className="flex items-center gap-1 text-[11px] text-(--success)">
@@ -253,6 +398,7 @@ const NotesEditorPage = () => {
               )}
             </div>
 
+            {/* SAVE */}
             {activeTab === 'raw' && (
               <button
                 onClick={handleManualSave}
@@ -265,66 +411,89 @@ const NotesEditorPage = () => {
               </button>
             )}
 
+            {/* PROVIDER */}
             <div className="hidden lg:flex provider-pill">
               <Sparkles size={10} />
               {aiConfig.provider}
             </div>
+
+            {/* STREAM PROCESS BUTTON */}
             <button
-              onClick={handleProcess}
+              onClick={() => setShowProcessSettings(true)}
               disabled={processing || !rawNotes.trim()}
               className="btn-primary"
             >
-              {processing
-                ? <Loader2 size={12} className="animate-spin" />
-                : <Sparkles size={12} />
-              }
+              {processing ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Sparkles size={12} />
+              )}
               <span className="hidden sm:inline">
-                {processing ? 'Processing...' : 'Process'}
+                {processing ? 'Streaming...' : 'Process (Live)'}
               </span>
+            </button>
+
+            {/* CHAT WITH NOTES BUTTON */}
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="btn-secondary hidden sm:flex"
+              title="Chat with Notes"
+            >
+              <MessageCircle size={12} />
+              <span className="hidden md:inline">Chat</span>
             </button>
           </div>
         </header>
 
+        {/* ERROR */}
         {processError && (
           <div className="flex items-center gap-2 px-5 py-2.5 text-[13px] animate-fade-in shrink-0 bg-(--danger-soft) border-b border-(--border-subtle) text-(--danger)">
             <AlertCircle size={14} className="shrink-0" />
             <span className="flex-1">{processError}</span>
-            <button onClick={() => setProcessError('')} style={{ opacity: 0.6 }}>
+            <button onClick={() => setProcessError('')} className="opacity-60 hover:opacity-100">
               <X size={14} />
             </button>
           </div>
         )}
 
-        <div
-          className="flex-1 overflow-hidden"
-          style={{
-            opacity: visible ? 1 : 0,
-            transition: 'opacity 0.15s ease',
-          }}
+        {/* PROCESS SETTINGS MODAL */}
+        {showProcessSettings && (
+          <ProcessSettingsModal
+            onClose={() => setShowProcessSettings(false)}
+            onConfirm={handleProcessStream}
+          />
+        )}
+
+        {/* CONTENT */}
+        <main
+          className="flex-1 min-h-0 overflow-hidden"
+          style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.15s ease' }}
         >
+          {/* RAW */}
           {activeTab === 'raw' && (
             <div className="h-full flex flex-col">
-              <div className="flex items-center gap-2 px-8 py-2.5 shrink-0 border-b border-(--border-subtle) bg-(--bg-subtle)">
-                <span className="text-[11px] text-(--text-faint)">AI commands:</span>
-                {['//ai make table', '//ai simplify', '//ai exam points', '//ai code'].map(cmd => (
-                  <code key={cmd} className="ai-chip">{cmd}</code>
-                ))}
+              <div className="flex items-center gap-2 px-5 sm:px-8 py-2.5 shrink-0 border-b border-(--border-subtle) bg-(--bg-subtle) overflow-x-auto">
+                <span className="text-[11px] text-(--text-faint) shrink-0">
+                  Tip: Use <code className="text-[#2383e2]">//ai make table</code> or <code className="text-[#2383e2]">//ai simplify</code> for AI instructions. Click <b>Import Slide</b> to upload PDF/Photos.
+                </span>
               </div>
-              <div className="flex-1 flex flex-col w-full mx-auto" style={{ maxWidth: '900px', minHeight: 0 }}>
+              <div className="flex-1 min-h-0 h-full overflow-hidden">
                 <HighlightedEditor
                   value={rawNotes}
                   onChange={handleRawChange}
-                  placeholder={`Start writing your lecture notes here...\n\nExamples:\n  binary search tree //ai make table\n  recursion //ai simplify\n  important formulas //ai exam points\n\nWrite freely — Hinglish works too.`}
+                  placeholder="Type or paste messy lecture notes here..."
                   autoFocus
                 />
               </div>
             </div>
           )}
 
+          {/* PROCESSED (STREAMING SUPPORT) */}
           {activeTab === 'processed' && (
             <ProcessedNotes
-              content={pendingNotes !== null ? pendingNotes : lecture?.processedNotes}
-              isPendingMode={pendingNotes !== null}
+              content={streaming ? streamingText : (pendingNotes || lecture?.processedNotes || '')}
+              isPendingMode={!!pendingNotes && !streaming}
+              isStreaming={streaming}
               onAccept={acceptPendingNotes}
               onDiscard={() => setPendingNotes(null)}
               lectureId={lectureId}
@@ -332,11 +501,21 @@ const NotesEditorPage = () => {
             />
           )}
 
+          {/* REVISION */}
           {activeTab === 'revision' && (
-            <RevisionMode content={lecture?.processedNotes} />
+            <RevisionMode
+              content={pendingNotes || lecture?.processedNotes || ''}
+              lectureId={lectureId}
+            />
           )}
-        </div>
+        </main>
       </div>
+
+      <NotesChat 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        subjectId={subject?._id} 
+      />
     </div>
   );
 };

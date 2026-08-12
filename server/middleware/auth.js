@@ -1,10 +1,6 @@
 const admin = require('firebase-admin');
 const User = require('../models/User');
 
-/**
- * Authentication middleware
- * Verifies Firebase ID token and attaches the MongoDB user to req.user
- */
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -14,15 +10,11 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-
-    // Verify the Firebase ID token
     const decodedToken = await admin.auth().verifyIdToken(token);
 
-    // Find existing user or create placeholder (full user creation happens in /auth/google)
     let user = await User.findOne({ firebaseUid: decodedToken.uid });
 
     if (!user) {
-      // Auto-create user from token claims if they authenticated but haven't hit /auth/google yet
       user = await User.create({
         firebaseUid: decodedToken.uid,
         name: decodedToken.name || 'User',
