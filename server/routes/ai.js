@@ -10,17 +10,14 @@ router.use(authenticate);
 // POST /api/ai/chat
 router.post('/chat', async (req, res) => {
   try {
-    const { question, subjectId, apiKey } = req.body;
+    const { subjectId, query, aiProvider, apiKey } = req.body;
     
-    if (!question || !question.trim()) {
-      return res.status(400).json({ error: 'Question is required' });
-    }
-    if (!subjectId) {
-      return res.status(400).json({ error: 'Subject ID is required' });
+    if (!subjectId || !query) {
+      return res.status(400).json({ error: 'Subject ID and query are required' });
     }
 
     // 1. Generate embedding for the question
-    const queryEmbedding = await generateEmbedding(question, apiKey);
+    const queryEmbedding = await generateEmbedding(query, apiKey);
 
     // 2. Fetch all lectures for this subject and filter valid embeddings in memory
     const allLectures = await Lecture.find({ subjectId });
@@ -54,7 +51,7 @@ router.post('/chat', async (req, res) => {
     }
 
     // 6. Generate the final answer using the context
-    const answer = await generateChatResponse(question, contextNotes, apiKey);
+    const answer = await generateChatResponse(query, contextNotes, aiProvider, apiKey);
 
     res.json({ answer });
   } catch (error) {

@@ -290,13 +290,7 @@ const generateEmbedding = async (text, apiKey) => {
   return result.embedding.values;
 };
 
-const generateChatResponse = async (query, contextNotes, apiKey) => {
-  const key = apiKey || process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('Missing Gemini API Key for chat');
-
-  const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
+const generateChatResponse = async (query, contextNotes, provider = 'gemini', apiKey = '') => {
   const prompt = `You are a helpful AI tutor. Answer the student's question based ONLY on the following lecture notes context. If the answer is not in the context, tell the student that the information is not present in their notes.
 
 CONTEXT NOTES:
@@ -307,8 +301,15 @@ ${query}
 
 Answer in a clean, readable Markdown format.`;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  switch (provider.toLowerCase()) {
+    case 'openai':
+      return await processWithOpenAI(prompt, apiKey);
+    case 'groq':
+      return await processWithGroq(prompt, apiKey);
+    case 'gemini':
+    default:
+      return await processWithGemini(prompt, apiKey);
+  }
 };
 
 const cosineSimilarity = (vecA, vecB) => {
