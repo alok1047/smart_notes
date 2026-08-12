@@ -21,30 +21,40 @@ const RevisionMode = ({ content }) => {
 
   const extract = (text) => {
     const lines = text.split('\n');
-    const out = [];
-    let inKP = false;
+    let out = [];
+    let inSection = false;
 
     for (const line of lines) {
       const s = line.trim();
-      if (s.match(/#{1,3}\s*📌?\s*key\s*points?/i)) {
-        inKP = true; out.push(line); continue;
+      
+      // Match Summary or Key Points headings
+      if (s.match(/#{1,3}\s*(?:📝\s*)?summary/i) || s.match(/#{1,3}\s*(?:📌\s*)?key\s*points?/i)) {
+        inSection = true; 
+        out.push(line); 
+        continue;
       }
-      if (inKP) {
-        if (s.match(/^#{1,2}\s/) && !s.match(/key\s*points?/i)) { inKP = false; continue; }
-        out.push(line); continue;
+      
+      if (inSection) {
+        // Stop if we hit a new H1 or H2 that isn't Summary or Key Points
+        if (s.match(/^#{1,2}\s/) && !s.match(/summary|key\s*points?/i)) { 
+          inSection = false; 
+          continue; 
+        }
+        out.push(line); 
+        continue;
       }
-      if (s.match(/^#{1,3}\s/)) { out.push(line); continue; }
-      if (s.includes('**')) { out.push(line); continue; }
-      if (/[📌⭐⚡🔑💡]/.test(s)) { out.push(line); continue; }
     }
 
-    if (out.length < 3) {
-      return lines.filter(l => {
-        const s = l.trim();
-        return s.match(/^#{1,3}\s/) || s.includes('**') || s.startsWith('- ');
-      }).join('\n');
+    // If we successfully found either a summary or key points, return just that
+    if (out.length > 3) {
+      return out.join('\n');
     }
-    return out.join('\n');
+
+    // Fallback: If no explicit sections found, extract headings, bolds, bullets, emojis
+    return lines.filter(l => {
+      const s = l.trim();
+      return s.match(/^#{1,3}\s/) || s.includes('**') || s.startsWith('- ') || /[📌⭐⚡🔑💡]/.test(s);
+    }).join('\n');
   };
 
   const revContent = extract(content);

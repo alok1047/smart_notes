@@ -23,11 +23,14 @@ const lectureSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  embedding: {
+    type: [Number],
+    default: [],
+  }
 }, {
   timestamps: true,
 });
 
-// Compound index for efficient queries
 lectureSchema.index({ subjectId: 1, lectureNumber: 1 });
 
 module.exports = mongoose.model('Lecture', lectureSchema);

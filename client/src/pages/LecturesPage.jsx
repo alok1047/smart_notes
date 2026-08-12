@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import LectureItem from '../components/LectureItem';
 import { getLectures, addLecture, deleteLecture, updateLectureTitle } from '../services/lectureService';
-import { ArrowLeft, BookOpen, CheckCircle2, Edit3, Circle, Plus, Loader2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, CheckCircle2, Edit3, Circle, Plus, Loader2, MessageCircle } from 'lucide-react';
+import NotesChat from '../components/NotesChat';
 
 const LecturesPage = () => {
   const { subjectId } = useParams();
@@ -13,7 +13,7 @@ const LecturesPage = () => {
   const [lectures, setLectures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingLecture, setAddingLecture] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -88,17 +88,8 @@ const LecturesPage = () => {
 
   return (
     <div className="app-layout">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(c => !c)}
-        onNewSubject={() => navigate('/dashboard')}
-      />
-
-      <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <Topbar
-          onMenuToggle={() => setSidebarCollapsed(c => !c)}
-          breadcrumb={breadcrumb}
-        />
+      <div className="main-content">
+        <Topbar breadcrumb={breadcrumb} />
 
         <div className="page-scroll">
           <div className="page-container max-w-4xl">
@@ -124,9 +115,16 @@ const LecturesPage = () => {
                         {lectures.length} {lectures.length === 1 ? 'lecture' : 'lectures'} · {pct}% complete
                       </p>
                     </div>
+                    <button
+                      onClick={() => setIsChatOpen(true)}
+                      className="btn-primary"
+                    >
+                      <MessageCircle size={16} />
+                      <span className="hidden sm:inline">Chat with Notes</span>
+                    </button>
                   </div>
                 </div>
-
+           <br></br>
                 {/* Stats strip */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                   <div className="stat-card">
@@ -156,17 +154,7 @@ const LecturesPage = () => {
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="mb-8">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11.5px] font-medium text-(--text-dim)">Progress</span>
-                    <span className="text-[11.5px] text-(--text-dim)">{processed} / {lectures.length}</span>
-                  </div>
-                  <div className="progress-track">
-                    <div className="progress-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-
+                <br></br>
                 {/* Lectures list */}
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-[12px] font-semibold text-(--text-dim) uppercase tracking-wider">
@@ -174,30 +162,45 @@ const LecturesPage = () => {
                   </h2>
                 </div>
 
-                <div className="lecture-list">
-                  {lectures.map(l => (
-                    <LectureItem
-                      key={l._id}
-                      lecture={l}
-                      onDelete={() => handleDeleteLecture(l._id)}
-                      onUpdateTitle={(title) => handleUpdateTitle(l._id, title)}
-                    />
-                  ))}
+          <div className="lecture-list flex flex-col gap-4">
+  {lectures.map(l => (
+    <LectureItem
+      key={l._id}
+      lecture={l}
+      onDelete={() => handleDeleteLecture(l._id)}
+      onUpdateTitle={(title) => handleUpdateTitle(l._id, title)}
+    />
+  ))}
 
-                  <button
-                    onClick={handleAddLecture}
-                    disabled={addingLecture}
-                    className="btn-dashed mt-3"
-                  >
-                    {addingLecture ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                    <span>{addingLecture ? 'Adding lecture...' : 'Add blank lecture'}</span>
-                  </button>
-                </div>
+  <button
+    onClick={handleAddLecture}
+    disabled={addingLecture}
+    className="btn-dashed"
+  >
+    {addingLecture ? (
+      <Loader2 size={14} className="animate-spin" />
+    ) : (
+      <Plus size={14} />
+    )}
+
+    <span>
+      {addingLecture
+        ? 'Adding lecture...'
+        : 'Add blank lecture'}
+    </span>
+  </button>
+</div>
               </div>
             )}
           </div>
         </div>
       </div>
+      
+      <NotesChat 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        subjectId={subjectId} 
+      />
     </div>
   );
 };

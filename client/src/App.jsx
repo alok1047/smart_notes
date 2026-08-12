@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { CommandPaletteProvider } from './context/CommandPaletteContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import CommandPalette from './components/CommandPalette';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import LecturesPage from './pages/LecturesPage';
@@ -16,7 +17,8 @@ function App() {
         <Router>
           <CommandPaletteProvider>
             <Routes>
-              <Route path="/" element={<LoginPage />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route
                 path="/dashboard"
                 element={<ProtectedRoute><DashboardPage /></ProtectedRoute>}
