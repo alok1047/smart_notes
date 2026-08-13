@@ -5,7 +5,7 @@
 const STORAGE_KEY = 'smart_notes_ai_settings';
 
 const DEFAULT_SETTINGS = {
-  provider: 'gemini', // 'gemini', 'openai', or 'groq'
+  provider: 'groq', // 'gemini', 'openai', or 'groq'
   apiKey: '',
 };
 

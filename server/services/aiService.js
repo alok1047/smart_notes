@@ -247,7 +247,7 @@ const streamProcessGroq = async (prompt, apiKey, onChunk) => {
   return fullText;
 };
 
-const processNotes = async (rawNotes, provider = 'gemini', apiKey = '', options = {}) => {
+const processNotes = async (rawNotes, provider = 'groq', apiKey = '', options = {}) => {
   if (!rawNotes || rawNotes.trim().length === 0) {
     throw new Error('No notes content provided');
   }
@@ -278,7 +278,7 @@ const processNotes = async (rawNotes, provider = 'gemini', apiKey = '', options 
   }
 };
 
-const streamNotes = async (rawNotes, provider = 'gemini', apiKey = '', options = {}, onChunk) => {
+const streamNotes = async (rawNotes, provider = 'groq', apiKey = '', options = {}, onChunk) => {
   if (!rawNotes || rawNotes.trim().length === 0) {
     throw new Error('No notes content provided');
   }
@@ -326,7 +326,7 @@ const generateEmbedding = async (text, apiKey) => {
   return result.embedding.values;
 };
 
-const generateChatResponse = async (query, contextNotes, provider = 'gemini', apiKey = '') => {
+const generateChatResponse = async (query, contextNotes, provider = 'groq', apiKey = '') => {
   const prompt = `You are a helpful AI tutor. Answer the student's question based ONLY on the following lecture notes context. If the answer is not in the context, tell the student that the information is not present in their notes.
 
 CONTEXT NOTES:
