@@ -1,7 +1,7 @@
 const Lecture = require('../models/Lecture');
 const Subject = require('../models/Subject');
 const pdfParse = require('pdf-parse');
-const { processNotes, streamNotes, extractTextFromImage, generateEmbedding } = require('../services/aiService');
+const { processNotes, streamNotes, extractTextFromImage } = require('../services/aiService');
 
 const getSingleLecture = async (req, res) => {
   try {
@@ -127,15 +127,6 @@ const updateLecture = async (req, res) => {
     if (rawNotes !== undefined) lecture.rawNotes = rawNotes;
     if (processedNotes !== undefined) {
       lecture.processedNotes = processedNotes;
-      if (processedNotes.trim().length > 0) {
-        try {
-          lecture.embedding = await generateEmbedding(processedNotes);
-        } catch (embErr) {
-          console.error('Failed to generate embedding on update:', embErr.message);
-        }
-      } else {
-        lecture.embedding = [];
-      }
     }
 
     await lecture.save();
@@ -203,13 +194,6 @@ const processLectureStream = async (req, res) => {
     });
 
     lecture.processedNotes = fullText;
-    if (fullText.trim().length > 0) {
-      try {
-        lecture.embedding = await generateEmbedding(fullText, apiKey);
-      } catch (embErr) {
-        console.error('Failed to generate embedding on stream finish:', embErr.message);
-      }
-    }
     await lecture.save();
 
     res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
