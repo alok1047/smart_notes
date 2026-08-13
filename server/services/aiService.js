@@ -216,7 +216,7 @@ const processWithGroq = async (prompt, apiKey) => {
     : [{ role: 'user', content: prompt }];
   const completion = await groq.chat.completions.create({
     messages,
-    model: 'llama-3.3-70b-versatile',
+    model: 'llama-3.1-8b-instant',
     max_tokens: 8000,
   });
   return completion.choices[0].message.content;
@@ -232,7 +232,7 @@ const streamProcessGroq = async (prompt, apiKey, onChunk) => {
     : [{ role: 'user', content: prompt }];
   const stream = await groq.chat.completions.create({
     messages,
-    model: 'llama-3.3-70b-versatile',
+    model: 'llama-3.1-8b-instant',
     stream: true,
     max_tokens: 8000,
   });

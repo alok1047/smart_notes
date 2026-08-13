@@ -1,239 +1,219 @@
-Build a full-stack AI-powered web application called “Smart Lecture Notes” that helps students convert messy lecture notes into structured, revision-friendly notes.
+# Smart Lecture Notes
+
+AI-powered notes app for students. Write messy lecture notes (Hinglish supported), hit **Process**, and get clean, revision-ready Markdown with diagrams, tables, and images — without the AI changing what you actually said.
 
 ---
 
-# 🎯 CORE PROBLEM
-Students write unorganized notes during lectures (often in Hinglish or mixed language). Later, they struggle to revise. This system should allow users to write raw notes quickly and then convert them into clean, structured notes using AI.
+## Features
+
+- **Google OAuth login** via Firebase, user upsert on first sign-in.
+- **Subjects → Lectures** hierarchy with auto-numbered lectures created in bulk.
+- **Rich text editor** (Tiptap) with Markdown support and live syntax highlighting.
+- **AI processing** — convert messy raw notes into structured Markdown:
+  - **Streaming** (SSE) with live preview, or one-shot processing.
+  - Multi-provider: **Gemini**, **GPT-4o Mini** (OpenAI), **Llama 3.3 70B** (Groq).
+  - Bring-your-own-API-key via settings modal, with server env fallback.
+  - Options: output language (English / Hinglish), strict vs. helpful mode, include summary / key points.
+- **Inline AI commands** — write `//ai …` anywhere in your notes:
+  - `//ai table` · `//ai make table`
+  - `//ai simplify`
+  - `//ai exam points`
+  - `//ai code`
+  - `//ai diagram` · `//ai graph` · `//ai flowchart` · `//ai tree` · `//ai architecture` → Mermaid diagrams
+  - `//ai image [description]` → AI-generated image (Pollinations FLUX / Lexica)
+- **Revision mode** — auto-extracts the `📌 Key Points` section and shows only that.
+- **Search** across subjects, lectures, and processed notes.
+- **Notes Chat** — ask questions about your processed notes (per-subject and per-lecture).
+- **File import** — upload PDFs / images (photos of whiteboards or slides) and extract text via Gemini vision.
+- **Export & share** — export a lecture as PDF (html2pdf) or push it to a GitHub repo.
+- **Recent lectures** quick access on the dashboard.
+- **Command palette** (⌘K), **dark/light theme** toggle, landing page.
 
 ---
 
-# 🧩 CORE FEATURES
+## Tech Stack
 
-## 1. Authentication
-- Implement Google OAuth login
-- Use Firebase Auth or Passport.js (Google Strategy)
-- Store user in database with:
-  - name
-  - email
-  - profile picture
-  - userId
-
----
-
-## 2. Data Model (MongoDB)
-
-Design the database with the following schema:
-
-User:
-- _id
-- name
-- email
-- avatar
-
-Subject:
-- _id
-- name
-- userId (reference to User)
-- createdAt
-
-Lecture:
-- _id
-- subjectId (reference to Subject)
-- lectureNumber (integer)
-- rawNotes (text)
-- processedNotes (text or JSON structured)
-- createdAt
-- updatedAt
+| Layer | Tech |
+|---|---|
+| Frontend | React 19 · Vite · Tailwind CSS v4 · React Router 7 · Tiptap · react-markdown · Mermaid |
+| Backend | Node.js · Express 4 |
+| Database | MongoDB (Mongoose 8) |
+| Auth | Firebase Auth (Google) + Firebase Admin SDK (JWT verification) |
+| AI | Google Gemini · OpenAI · Groq |
+| File parsing | pdf-parse · Gemini vision OCR |
 
 ---
 
-## 3. Subject Management
-- User can:
-  - Create subject
-  - View all subjects
-  - Delete subject
-- UI should display subjects as cards
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- MongoDB (local or Atlas)
+- A Firebase project (Auth + service account)
+- API keys for at least one AI provider (Gemini / OpenAI / Groq)
+
+### 1. Clone & install
+
+```bash
+git clone <repo-url>
+cd notes_maker
+
+cd client && npm install
+cd ../server && npm install
+```
+
+### 2. Configure the server
+
+```bash
+cd server
+cp .env.example .env
+```
+
+Fill in your values (see the full list below).
+
+### 3. Configure the client
+
+Firebase web config lives in [client/src/services/firebase.js](client/src/services/firebase.js) — replace the placeholder fields with your project's values.
+
+### 4. Run
+
+```bash
+# Client → http://localhost:5173
+cd client && npm run dev
+
+# Server → http://localhost:5002
+cd server && npm run dev
+```
+
+> **Note on ports:** `client/vite.config.js` proxies `/api` to `http://localhost:5002`. The server reads `PORT` from `server/.env` — keep it set to `5002` (or update the Vite proxy to match).
 
 ---
 
-## 4. Lecture Creation
-- When creating a subject, ask:
-  “How many lectures do you want to create?”
-- Automatically generate N lecture entries in DB
-- Each lecture should be editable individually
+## Environment Variables
+
+### Server (`server/.env`)
+
+```
+PORT=5002
+MONGO_URI=mongodb://localhost:27017/smart-lecture-notes
+
+# Firebase Admin SDK — Option 1: individual fields
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-client-email@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# — or Option 2: full service-account JSON string
+# FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"..."}
+
+# AI provider keys (used as fallback when the user has no key saved)
+GEMINI_API_KEY=...
+OPENAI_API_KEY=...
+GROQ_API_KEY=...
+
+# CORS
+CLIENT_URL=http://localhost:5173
+```
+
+### Client
+
+Firebase web config in `client/src/services/firebase.js`. Optional `VITE_API_BASE_URL` in `client/.env` to point at a deployed API (defaults to `/api`).
 
 ---
 
-## 5. Raw Notes Editor
-- Each lecture has a rich text editor (or textarea initially)
-- User writes:
-  - messy notes
-  - Hinglish content
-  - shorthand
-- Allow inline AI instructions using:
-  // command format
+## API Reference
 
-Example:
-binary tree traversal // convert into table
-recursion concept // simplify
+All routes except `POST /api/auth/google` and `GET /api/health` require:
 
----
+```
+Authorization: Bearer <firebaseIdToken>
+```
 
-## 6. AI Processing Feature (MOST IMPORTANT)
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/auth/google` | Verify Firebase token, upsert user |
+| GET | `/api/health` | Health check |
+| GET | `/api/subjects` | List user's subjects |
+| POST | `/api/subjects` | Create subject + N blank lectures |
+| DELETE | `/api/subjects/:id` | Delete subject and its lectures |
+| GET | `/api/lectures/:subjectId` | List lectures for a subject |
+| GET | `/api/lectures/single/:id` | Fetch one lecture |
+| GET | `/api/lectures/recent/all` | Fetch 6 most recently updated lectures |
+| POST | `/api/lectures/:subjectId` | Add a new blank lecture |
+| PUT | `/api/lectures/:id` | Update `title` / `rawNotes` / `processedNotes` |
+| DELETE | `/api/lectures/single/:id` | Delete one lecture |
+| POST | `/api/lectures/:id/process` | Process notes with AI (returns preview, no auto-save) |
+| POST | `/api/lectures/:id/process-stream` | Stream-process notes (SSE), saves on completion |
+| POST | `/api/lectures/:id/import-file` | Upload PDF/image, extract text (multipart) |
+| GET | `/api/search?q=…` | Search subjects + lectures + processed notes |
+| POST | `/api/ai/chat` | Ask a question over a subject's processed notes |
+| POST | `/api/ai/generate-image` | Generate an AI image URL for a prompt |
 
-When user clicks “Process Notes”:
+### Process request body
 
-Send rawNotes to AI API (OpenAI / Gemini)
-
-AI must:
-1. Understand context 
-2. Organize notes into structured format without changing notes just structure it
-
-
----
-
-## 8. Special AI Command Parsing
-
-Before sending to AI:
-- Parse lines containing "//"
-
-Examples:
-- "// make table" → convert previous content into table
-- "// simplify" → simplify explanation
-- "// exam points" → highlight key points
-
-Pass these instructions explicitly in prompt.
-
----
-
-## 9. Processed Notes View
-- Display structured notes cleanly:
-  - headings
-  - bullet points
-  - sections
-- Allow toggling between:
-  - Raw Notes
-  - Processed Notes
+```json
+{
+  "aiProvider": "groq",
+  "apiKey": "user-key-or-empty",
+  "options": {
+    "language": "English",
+    "strictness": "strict",
+    "includeKeyPoints": true,
+    "includeSummary": false
+  }
+}
+```
 
 ---
 
-## 10. Revision Mode (IMPORTANT FEATURE)
-- Show only:
-  - key points
-  - important notes
-- Hide explanations
+## Project Structure
+
+```
+notes_maker/
+├── client/                          React + Vite SPA
+│   └── src/
+│       ├── main.jsx · App.jsx        entry + router
+│       ├── index.css                 ALL styles (Tailwind v4 + CSS vars)
+│       ├── pages/                    Landing · Login · Dashboard · Lectures · NotesEditor
+│       ├── components/               Sidebar · Topbar · CommandPalette · TiptapEditor ·
+│       │                             HighlightedEditor · ProcessedNotes · RevisionMode ·
+│       │                             NotesChat · MermaidBlock · AIImageBlock · CodeBlock ·
+│       │                             AISettingsModal · ProcessSettingsModal ·
+│       │                             GithubSettingsModal · SubjectCard · LectureCard ...
+│       ├── context/                  AuthContext · ThemeContext · CommandPaletteContext
+│       ├── services/                 api.js (axios + JWT interceptor) · firebase.js ·
+│       │                             subjectService · lectureService
+│       └── utils/                    aiSettings · githubSettings · markdownUtils
+│
+└── server/                          Express API
+    ├── server.js                     entry
+    ├── config/                       db.js (Mongo) · firebase.js (Admin SDK)
+    ├── middleware/                   auth.js (Firebase JWT verify + upsert user)
+    ├── models/                       User · Subject · Lecture
+    ├── controllers/                  auth · subject · lecture · search · ai
+    ├── routes/                       auth · subjects · lectures · search · ai
+    └── services/aiService.js         multi-provider AI orchestration + prompt builder
+```
 
 ---
 
-## 11. Search Functionality
-- Search across:
-  - subjects
-  - lectures
-  - processed notes
+## Data Model
+
+```
+User     { firebaseUid, name, email, avatar }
+Subject  { name, userId → User, lectureCount }
+Lecture  { subjectId → Subject, lectureNumber, title, rawNotes, processedNotes, embedding }
+         + compound index (subjectId, lectureNumber)
+```
 
 ---
 
-## 12. Save & Update
-- After AI processing:
-  - Store processedNotes in DB
-- Allow user to reprocess notes
+## How the AI pipeline works
 
----
+1. **Parse commands** — `parseCommands()` scans raw notes for `//ai …` directives (line number + target content).
+2. **Clean** — `cleanRawNotes()` strips stray `//` comment prefixes so the AI treats them as content.
+3. **Build prompt** — `buildPrompt()` assembles the system prompt: output language rules, strict/helpful mode, key-points/summary flags, and special directive handlers (Mermaid rules, image URLs, tables, code blocks, exam points).
+4. **Route** — based on the chosen provider, call Gemini / OpenAI / Groq (single-shot or SSE stream).
+5. **Return** — processed Markdown. The client shows a preview; the user approves/saves it (`processedNotes`).
 
-# ⚙️ TECH STACK
-
-Frontend:
-- React.js (Vite)
-- Tailwind CSS
-- React Router
-
-Backend:
-- Node.js
-- Express.js
-
-Database:
-- MongoDB (Mongoose)
-
-Authentication:
-- Google OAuth (Firebase or Passport.js)
-
-AI Integration:
-- OpenAI API OR Google Gemini API
-
----
-
-# 🔌 API DESIGN
-
-Auth:
-- POST /auth/google
-
-Subjects:
-- POST /subjects
-- GET /subjects
-- DELETE /subjects/:id
-
-Lectures:
-- POST /lectures/bulk-create
-- GET /lectures/:subjectId
-- PUT /lectures/:id (save raw notes)
-- POST /lectures/:id/process (AI processing)
-
----
-
-# 🎨 UI REQUIREMENTS
-
-Pages:
-1. Dashboard (Subjects)
-2. Lectures List
-3. Notes Editor Page
-
-Design:
-- Clean, minimal
-- Focus on readability
-- Dark mode optional
-
----
-
-# 🧠 AI PROMPT (IMPORTANT)
-
-When sending to AI, use:
-
-Convert the following messy student notes into clean, structured study notes.
-
-Rules:
-- Convert Hinglish into proper English
-- Keep the meaning intact
-- Return properly formatted notes using headings, subheadings, and bullet points
-- Format like class notes (easy to read, clean structure)
-- Use:
-  - # for main headings
-  - ## for subheadings
-  - bullet points for key concepts
-  - code blocks where needed
-- Preserve technical terms correctly
-
-Special Instructions:
-- If user writes "// make table" → convert relevant content into a table
-- If user writes "// simplify" → simplify explanation
-- If user writes "// exam points" → highlight important points
-
-Output should look like well-written notes (not data format, not JSON).
-
----
-
-# 🚀 ADVANCED (OPTIONAL)
-
-- Generate flashcards from notes
-- Export notes as PDF
-- Add tags per lecture
-- Add autosave
-
----
-
-# 📌 GOAL
-
-The final product should:
-- Help students revise faster
-- Reduce cognitive load
-- Provide structured learning material instantly
-- Demonstrate strong full-stack + AI integration skills# smart_notes
+API keys flow: user's saved key (localStorage → request body) takes priority over `process.env.*` fallbacks.
