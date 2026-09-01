@@ -14,3 +14,8 @@ export const deleteSubject = async (id) => {
   const res = await api.delete(`/subjects/${id}`);
   return res.data;
 };
+
+export const updateSubject = async (id, data) => {
+  const res = await api.patch(`/subjects/${id}`, data);
+  return res.data;
+};

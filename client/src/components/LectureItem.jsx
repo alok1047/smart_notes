@@ -18,6 +18,8 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
 
   const StatusIcon = status.icon;
 
+  const open = () => navigate(`/editor/${lecture._id}`);
+
   const relTime = (d) => {
     if (!d) return '';
     const diff = Date.now() - new Date(d);
@@ -33,10 +35,19 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
 
   return (
     <div
-      onClick={() => navigate(`/editor/${lecture._id}`)}
-      className="group lecture-item flex items-center gap-3"
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!isEditing) open();
+        }
+      }}
+      aria-label={`Open ${lecture.title?.trim() || `Lecture ${lecture.lectureNumber}`}`}
+      className="group lecture-item flex items-center gap-3 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-(--accent-ring) rounded-lg"
     >
-      <div className="w-8 h-8 rounded-md bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center shrink-0 text-[12px] font-medium text-(--text-dim)">
+      <div className="w-8 h-8 rounded-md bg-(--accent-soft) border border-(--accent-ring) flex items-center justify-center shrink-0 text-[12px] font-semibold text-(--accent-text)">
         {lecture.lectureNumber}
       </div>
 
@@ -78,8 +89,9 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
               </h3>
               <button
                 onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-                className="text-(--text-faint) hover:text-(--text-dim) opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                className="text-(--text-faint) hover:text-(--text-dim) opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-0.5"
                 title="Rename"
+                aria-label="Rename lecture"
               >
                 <PenLine size={11} />
               </button>
@@ -99,19 +111,24 @@ const LectureItem = ({ lecture, onDelete, onUpdateTitle }) => {
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {lecture.updatedAt && (
+        {lecture.wordCount ? (
+          <span className="hidden md:flex items-center gap-1 text-[11px] text-(--text-faint)">
+            {lecture.wordCount.toLocaleString()} words
+          </span>
+        ) : lecture.updatedAt ? (
           <span className="hidden sm:flex items-center gap-1 text-[11px] text-(--text-faint)">
             <Clock size={10} />
             {relTime(lecture.updatedAt)}
           </span>
-        )}
+        ) : null}
         <button
           onClick={(e) => {
             e.stopPropagation();
             if (onDelete) onDelete();
           }}
-          className="text-(--text-faint) hover:text-(--danger) opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-(--surface-hover)"
+          className="text-(--text-faint) hover:text-(--danger) opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all p-1.5 rounded-md hover:bg-(--surface-hover)"
           title="Delete lecture"
+          aria-label="Delete lecture"
         >
           <Trash2 size={12} />
         </button>

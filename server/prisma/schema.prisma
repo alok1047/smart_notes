@@ -1,0 +1,161 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model User {
+  id              String       @id @default(cuid())
+  googleId        String?      @unique @map("google_id")
+  email           String       @unique
+  name            String
+  avatar          String       @default("")
+  passwordHash    String?      @map("password_hash")
+  resetTokenHash  String?      @map("reset_token_hash")
+  resetTokenExpiry DateTime?   @map("reset_token_expiry")
+  subjects        Subject[]
+  apiKeys         UserApiKey[]
+  webhooks        Webhook[]
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Subject {
+  id           String    @id @default(cuid())
+  name         String
+  description  String    @default("")
+  color        String    @default("#208383")
+  systemPrompt String    @default("") @map("system_prompt")
+  userId       String    @map("user_id")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lectures     Lecture[]
+  tags         Tag[]     @relation("SubjectTags")
+  lectureCount Int       @default(0) @map("lecture_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("subjects")
+}
+
+model Lecture {
+  id             String        @id @default(cuid())
+  subjectId      String        @map("subject_id")
+  subject        Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  lectureNumber  Int           @map("lecture_number")
+  title          String        @default("")
+  rawNotes       String        @default("") @map("raw_notes")
+  processedNotes String        @default("") @map("processed_notes")
+  summary        String        @default("")
+  chunks         NoteChunk[]
+  versions       NoteVersion[]
+  status         LectureStatus @default(EMPTY)
+  wordCount      Int           @default(0) @map("word_count")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@unique([subjectId, lectureNumber])
+  @@index([subjectId])
+  @@map("lectures")
+}
+
+model NoteChunk {
+  id         String                     @id @default(cuid())
+  lectureId  String                     @map("lecture_id")
+  lecture    Lecture                    @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  content    String
+  embedding  Unsupported("vector(768)")?
+  chunkIndex Int                        @map("chunk_index")
+  metadata   Json                       @default("{}")
+  createdAt  DateTime                   @default(now()) @map("created_at")
+
+  @@index([lectureId])
+  @@map("note_chunks")
+}
+
+model NoteVersion {
+  id             String   @id @default(cuid())
+  lectureId      String   @map("lecture_id")
+  lecture        Lecture  @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  rawNotes       String   @map("raw_notes")
+  processedNotes String   @map("processed_notes")
+  version        Int
+  diff           String   @default("")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([lectureId, version])
+  @@index([lectureId])
+  @@map("note_versions")
+}
+
+model Tag {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  subjects Subject[] @relation("SubjectTags")
+
+  @@map("tags")
+}
+
+model UserApiKey {
+  id        String     @id @default(cuid())
+  userId    String     @map("user_id")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  AIProvider
+  keyHash   String     @map("key_hash")
+  keyPrefix String     @map("key_prefix")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@unique([userId, provider])
+  @@map("user_api_keys")
+}
+
+model Webhook {
+  id        String        @id @default(cuid())
+  userId    String        @map("user_id")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url       String
+  events    WebhookEvent[]
+  secret    String
+  active    Boolean       @default(true)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("webhooks")
+}
+
+model GuestTryUsage {
+  id          String    @id @default(cuid())
+  anonymousId String    @unique @map("anonymous_id")
+  usedCount   Int       @default(0) @map("used_count")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("guest_try_usages")
+}
+
+enum LectureStatus {
+  EMPTY
+  DRAFT
+  PROCESSED
+  REVIEWED
+}
+
+enum AIProvider {
+  GEMINI
+  OPENAI
+  GROQ
+}
+
+enum WebhookEvent {
+  LECTURE_CREATED
+  LECTURE_PROCESSED
+  NOTES_UPDATED
+}

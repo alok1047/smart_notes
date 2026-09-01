@@ -1,17 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Loader2, FileText, BookOpen, X, Sun, Moon, KeySquare, CloudUpload, LogOut, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, Loader2, FileText, X, Sun, Moon, KeySquare, CloudUpload, LogOut, User } from 'lucide-react';
+import { BrandLockup } from './Brand';
 import { searchAll } from '../services/lectureService';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useCommandPalette } from '../context/CommandPaletteContext';
 import AISettingsModal from './AISettingsModal';
 import GithubSettingsModal from './GithubSettingsModal';
 
-const Topbar = ({ breadcrumb, rightContent }) => {
+const Topbar = ({ breadcrumb, rightContent, sidebarCollapsed, onToggleSidebar }) => {
   const { user, dbUser, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { toggle: toggleCmdk } = useCommandPalette();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -29,6 +28,7 @@ const Topbar = ({ breadcrumb, rightContent }) => {
 
   const displayName = dbUser?.name || user?.displayName || 'Student';
   const email = user?.email || dbUser?.email || '';
+  const photo = user?.photoURL || dbUser?.avatar || '';
   const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   const handleSearch = async (val) => {
@@ -70,18 +70,31 @@ const Topbar = ({ breadcrumb, rightContent }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const handleMenuClick = () => {
+    // On mobile (<1024px) toggle mobile overlay; on desktop toggle collapse
+    if (window.innerWidth < 1024) {
+      window.dispatchEvent(new Event('toggleMobileSidebar'));
+    } else if (onToggleSidebar) {
+      onToggleSidebar();
+    }
+  };
+
   return (
     <>
       <header className="topbar">
         {/* Left: Brand Logo & Nav */}
-        <div className="flex items-center gap-6 shrink-0">
-          <Link to="/dashboard" className="flex items-center gap-2.5 text-(--text) hover:opacity-90 transition-opacity">
-            <div className="w-7 h-7 rounded-md bg-(--accent) flex items-center justify-center shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight">SmartNotes</span>
+        <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+          <button
+            onClick={handleMenuClick}
+            className={`${sidebarCollapsed ? '' : 'lg:hidden '}btn-ghost p-1.5 rounded-md text-(--text-dim)`}
+            aria-label="Toggle navigation menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <Link to="/dashboard" className="flex items-center gap-2.5 min-w-0 hover:opacity-90 transition-opacity">
+            <BrandLockup size={26} />
           </Link>
 
           {breadcrumb && (
@@ -179,32 +192,28 @@ const Topbar = ({ breadcrumb, rightContent }) => {
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(prev => !prev)}
-              className="flex items-center gap-2 p-1 rounded-full hover:bg-(--surface-hover) transition-colors border border-(--border-subtle)"
+              className="rounded-full hover:ring-2 hover:ring-(--border) transition-all"
               aria-label="User Menu"
             >
-              <div className="relative shrink-0">
-                {user?.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={displayName}
-                    className="w-7 h-7 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-(--accent) flex items-center justify-center text-white text-[11px] font-bold">
-                    {initials}
-                  </div>
-                )}
-                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 border border-(--bg) rounded-full" />
-              </div>
-              <ChevronDown size={13} className="text-(--text-dim) pr-1" />
+              {photo ? (
+                <img
+                  src={photo}
+                  alt={displayName}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-(--accent) flex items-center justify-center text-white text-[11px] font-bold">
+                  {initials}
+                </div>
+              )}
             </button>            {/* Profile Dropdown Menu */}
             {profileOpen && (
               <div className="absolute right-0 top-full mt-2.5 w-64 bg-(--surface-elevated) border border-(--border-strong) rounded-xl shadow-xl z-[100] p-2 animate-scale-in">
                 {/* User Info Header */}
                 <div className="flex items-center gap-2.5 p-2.5 border border-(--border-subtle) mb-1.5 bg-(--surface-hover)/60 rounded-lg">
-                  {user?.photoURL ? (
+                  {photo ? (
                     <img
-                      src={user.photoURL}
+                      src={photo}
                       alt={displayName}
                       className="w-8 h-8 rounded-full object-cover shrink-0 border border-(--border)"
                     />
@@ -227,11 +236,20 @@ const Topbar = ({ breadcrumb, rightContent }) => {
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-(--text) hover:bg-(--surface-hover) rounded-lg transition-colors text-left"
                   >
                     {theme === 'dark' ? (
-                      <Sun size={15} className="text-amber-400 shrink-0" />
+                      <Sun size={15} className="text-(--accent-text) shrink-0" />
                     ) : (
-                      <Moon size={15} className="text-indigo-400 shrink-0" />
+                      <Moon size={15} className="text-(--accent-text) shrink-0" />
                     )}
                     <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                  </button>
+
+                  {/* Option 1b: Profile */}
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate('/profile'); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-(--text) hover:bg-(--surface-hover) rounded-lg transition-colors text-left"
+                  >
+                    <User size={15} className="text-(--text-dim) shrink-0" />
+                    <span>Profile & AI Settings</span>
                   </button>
 
                   {/* Option 2: API Key Settings */}
@@ -239,7 +257,7 @@ const Topbar = ({ breadcrumb, rightContent }) => {
                     onClick={() => { setShowAiSettings(true); setProfileOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-(--text) hover:bg-(--surface-hover) rounded-lg transition-colors text-left"
                   >
-                    <KeySquare size={15} className="text-sky-400 shrink-0" />
+                    <KeySquare size={15} className="text-(--text-dim) shrink-0" />
                     <span>API Key Settings</span>
                   </button>
 
@@ -248,7 +266,7 @@ const Topbar = ({ breadcrumb, rightContent }) => {
                     onClick={() => { setShowGithubSettings(true); setProfileOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-(--text) hover:bg-(--surface-hover) rounded-lg transition-colors text-left"
                   >
-                    <CloudUpload size={15} className="text-emerald-400 shrink-0" />
+                    <CloudUpload size={15} className="text-(--text-dim) shrink-0" />
                     <span>Push to GitHub</span>
                   </button>
                 </div>
@@ -260,7 +278,7 @@ const Topbar = ({ breadcrumb, rightContent }) => {
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-left"
                 >
-                  <LogOut size={15} className="shrink-0" />
+                  <LogOut size={15} className="shrink-0 text-(--danger)" />
                   <span>Log out</span>
                 </button>
               </div>

@@ -4,10 +4,10 @@ const ThemeContext = createContext(null);
 const STORAGE_KEY = 'smartnotes-theme';
 
 const getInitialTheme = () => {
-  if (typeof window === 'undefined') return 'dark';
+  if (typeof window === 'undefined') return 'light';
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return 'light';
 };
 
 export const ThemeProvider = ({ children }) => {

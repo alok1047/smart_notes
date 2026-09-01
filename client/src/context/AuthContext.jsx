@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth, onAuthStateChanged, signInWithGoogle, logOut, getIdToken } from '../services/firebase';
+import {
+  signInWithGoogle,
+  logOut,
+  getIdToken,
+  storeIdToken,
+  clearIdToken,
+} from '../services/googleAuth';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
@@ -12,45 +18,108 @@ export const useAuth = () => {
   return context;
 };
 
+const sessionKey = 'notesync_session';
+
+const persistSession = (token, user) => {
+  if (token) storeIdToken(token);
+  if (user) localStorage.setItem(sessionKey, JSON.stringify(user));
+};
+
+const readSessionUser = () => {
+  try {
+    const raw = localStorage.getItem(sessionKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [dbUser, setDbUser] = useState(null);
+  const [user, setUser] = useState(() => readSessionUser());
+  const [dbUser, setDbUser] = useState(() => readSessionUser());
   const [loading, setLoading] = useState(true);
 
-  // Listen for Firebase auth state changes
+  // Restore session on mount. Only Google sessions can be re-validated against
+  // /auth/google; email/password sessions carry the app's own JWT, which that
+  // endpoint always rejects (401) — so never send those tokens to it.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        // Sync with backend
-        try {
-          const token = await firebaseUser.getIdToken();
-          const res = await api.post('/auth/google', { token });
-          setDbUser(res.data.user);
-        } catch (error) {
-          console.error('Backend sync error:', error);
+    (async () => {
+      try {
+        const token = await getIdToken();
+        const cached = readSessionUser();
+
+        if (!token || !cached) {
+          if (token && !cached) clearIdToken();
+          return;
         }
-      } else {
+
+        setUser(cached);
+        setDbUser(cached);
+
+        if (cached.provider === 'google') {
+          try {
+            const res = await api.post('/auth/google', { token });
+            setDbUser(res.data.user);
+            persistSession(token, res.data.user);
+          } catch {
+            // Google ID token may be expired — the API interceptor /
+            // subsequent 401 handling takes care of the sign-out flow.
+          }
+        }
+      } catch {
+        clearIdToken();
+        localStorage.removeItem(sessionKey);
         setUser(null);
         setDbUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    })();
   }, []);
+
+  const applyAuth = (token, profile) => {
+    persistSession(token, profile);
+    setUser(profile);
+    setDbUser(profile);
+    setLoading(false);
+    return profile;
+  };
 
   const login = async () => {
     try {
-      setLoading(true);
-      const { user: firebaseUser, idToken } = await signInWithGoogle();
-      setUser(firebaseUser);
+      // Note: we don't toggle `loading` here — the Google popup is an
+      // interactive flow and the LoginPage keeps its own `busy` state, so the
+      // user should keep seeing the page (and any inline errors) instead of a
+      // full-screen loader while the account chooser is open.
+      const { idToken } = await signInWithGoogle();
+      storeIdToken(idToken);
 
-      // Sync with backend
       const res = await api.post('/auth/google', { token: idToken });
-      setDbUser(res.data.user);
+      return applyAuth(idToken, res.data.user);
+    } catch (error) {
+      clearIdToken();
+      throw error;
+    }
+  };
+
+  const loginWithEmail = async (email, password) => {
+    try {
+      setLoading(true);
+      const res = await api.post('/auth/login', { email, password });
+      const profile = res.data.user;
+      return applyAuth(res.data.token, { ...profile, provider: 'email' });
+    } catch (error) {
       setLoading(false);
-      return res.data.user;
+      throw error;
+    }
+  };
+
+  const registerWithEmail = async (name, email, password) => {
+    try {
+      setLoading(true);
+      const res = await api.post('/auth/register', { name, email, password });
+      const profile = res.data.user;
+      return applyAuth(res.data.token, { ...profile, provider: 'email' });
     } catch (error) {
       setLoading(false);
       throw error;
@@ -60,19 +129,33 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await logOut();
-      setUser(null);
-      setDbUser(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
+    clearIdToken();
+    localStorage.removeItem(sessionKey);
+    setUser(null);
+    setDbUser(null);
+  };
+
+  const updateUser = (profile) => {
+    if (!profile) return;
+    setDbUser(profile);
+    setUser(profile);
+    const token = localStorage.getItem('google_id_token') || localStorage.getItem('notesync_token');
+    persistSession(token, profile);
+    return profile;
   };
 
   const value = {
-    user,           // Firebase user object
-    dbUser,         // MongoDB user object
+    user,
+    dbUser,
     loading,
     login,
+    loginWithEmail,
+    registerWithEmail,
     logout,
+    updateUser,
     isAuthenticated: !!user,
   };
 

@@ -21,7 +21,7 @@ const initMermaid = () => {
         primaryColor: '#003A3D',
         primaryTextColor: '#f8fafc',
         primaryBorderColor: '#2083e2',
-        lineColor: '#529CCA',
+        lineColor: '#4EC5C5',
         secondaryColor: '#0C151D',
         tertiaryColor: '#1e293b',
         fontSize: '13px',

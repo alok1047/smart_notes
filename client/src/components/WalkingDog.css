@@ -1,0 +1,257 @@
+/* ================================================================== */
+/* Walking Dog — CSS keyframe animation                                */
+/*                                                                     */
+/* Timeline (12s loop):                                                */
+/*   0–35%    walk from left to center                                */
+/*   35–65%   stop in center, wag tail, pant                          */
+/*   65–100%  walk from center to right (exit)                        */
+/* ================================================================== */
+
+.walking-dog-track {
+  position: relative;
+  width: 100%;
+  height: 36px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.walking-dog {
+  position: absolute;
+  bottom: 0;
+  animation: dogWalk 12s ease-in-out infinite;
+}
+
+.walking-dog-svg {
+  width: 56px;
+  height: 36px;
+}
+
+/* ── Main walk path: left → center → right ── */
+@keyframes dogWalk {
+  0%   { left: -60px; }
+  35%  { left: calc(50% - 28px); }
+  65%  { left: calc(50% - 28px); }
+  100% { left: calc(100% + 60px); }
+}
+
+/* ── Leg animation: walk during 0–35% and 65–100%, idle during stop ── */
+.dog-front-legs {
+  animation: frontLegWalk 12s ease-in-out infinite;
+}
+.dog-back-legs {
+  animation: backLegWalk 12s ease-in-out infinite;
+}
+
+@keyframes frontLegWalk {
+  /* Walking phase 1 */
+  0%    { transform: rotate(0deg); }
+  3%    { transform: rotate(12deg); }
+  6%    { transform: rotate(-12deg); }
+  9%    { transform: rotate(12deg); }
+  12%   { transform: rotate(-12deg); }
+  15%   { transform: rotate(12deg); }
+  18%   { transform: rotate(-12deg); }
+  21%   { transform: rotate(12deg); }
+  24%   { transform: rotate(-12deg); }
+  27%   { transform: rotate(12deg); }
+  30%   { transform: rotate(-12deg); }
+  33%   { transform: rotate(6deg); }
+  /* Stop */
+  35%   { transform: rotate(0deg); }
+  65%   { transform: rotate(0deg); }
+  /* Walking phase 2 */
+  68%   { transform: rotate(12deg); }
+  71%   { transform: rotate(-12deg); }
+  74%   { transform: rotate(12deg); }
+  77%   { transform: rotate(-12deg); }
+  80%   { transform: rotate(12deg); }
+  83%   { transform: rotate(-12deg); }
+  86%   { transform: rotate(12deg); }
+  89%   { transform: rotate(-12deg); }
+  92%   { transform: rotate(12deg); }
+  95%   { transform: rotate(-12deg); }
+  98%   { transform: rotate(6deg); }
+  100%  { transform: rotate(0deg); }
+}
+
+@keyframes backLegWalk {
+  /* Walking phase 1 (opposite of front) */
+  0%    { transform: rotate(0deg); }
+  3%    { transform: rotate(-12deg); }
+  6%    { transform: rotate(12deg); }
+  9%    { transform: rotate(-12deg); }
+  12%   { transform: rotate(12deg); }
+  15%   { transform: rotate(-12deg); }
+  18%   { transform: rotate(12deg); }
+  21%   { transform: rotate(-12deg); }
+  24%   { transform: rotate(12deg); }
+  27%   { transform: rotate(-12deg); }
+  30%   { transform: rotate(12deg); }
+  33%   { transform: rotate(-6deg); }
+  /* Stop */
+  35%   { transform: rotate(0deg); }
+  65%   { transform: rotate(0deg); }
+  /* Walking phase 2 */
+  68%   { transform: rotate(-12deg); }
+  71%   { transform: rotate(12deg); }
+  74%   { transform: rotate(-12deg); }
+  77%   { transform: rotate(12deg); }
+  80%   { transform: rotate(-12deg); }
+  83%   { transform: rotate(12deg); }
+  86%   { transform: rotate(-12deg); }
+  89%   { transform: rotate(12deg); }
+  92%   { transform: rotate(-12deg); }
+  95%   { transform: rotate(12deg); }
+  98%   { transform: rotate(-6deg); }
+  100%  { transform: rotate(0deg); }
+}
+
+/* ── Tail wag: gentle during walk, excited during stop ── */
+.dog-tail {
+  animation: tailWag 12s ease-in-out infinite;
+  transform-origin: 14px 14px;
+}
+
+@keyframes tailWag {
+  /* Gentle wag while walking */
+  0%    { transform: rotate(0deg); }
+  2%    { transform: rotate(10deg); }
+  4%    { transform: rotate(-5deg); }
+  6%    { transform: rotate(10deg); }
+  8%    { transform: rotate(-5deg); }
+  10%   { transform: rotate(10deg); }
+  12%   { transform: rotate(-5deg); }
+  14%   { transform: rotate(10deg); }
+  16%   { transform: rotate(-5deg); }
+  18%   { transform: rotate(10deg); }
+  20%   { transform: rotate(-5deg); }
+  22%   { transform: rotate(10deg); }
+  24%   { transform: rotate(-5deg); }
+  26%   { transform: rotate(10deg); }
+  28%   { transform: rotate(-5deg); }
+  30%   { transform: rotate(10deg); }
+  33%   { transform: rotate(5deg); }
+  35%   { transform: rotate(0deg); }
+  /* EXCITED wag during stop! */
+  36%   { transform: rotate(25deg); }
+  37%   { transform: rotate(-15deg); }
+  38%   { transform: rotate(25deg); }
+  39%   { transform: rotate(-15deg); }
+  40%   { transform: rotate(25deg); }
+  41%   { transform: rotate(-15deg); }
+  42%   { transform: rotate(25deg); }
+  43%   { transform: rotate(-15deg); }
+  44%   { transform: rotate(25deg); }
+  45%   { transform: rotate(-15deg); }
+  46%   { transform: rotate(25deg); }
+  47%   { transform: rotate(-15deg); }
+  48%   { transform: rotate(25deg); }
+  49%   { transform: rotate(-15deg); }
+  50%   { transform: rotate(25deg); }
+  51%   { transform: rotate(-15deg); }
+  52%   { transform: rotate(25deg); }
+  53%   { transform: rotate(-15deg); }
+  54%   { transform: rotate(25deg); }
+  55%   { transform: rotate(-15deg); }
+  56%   { transform: rotate(25deg); }
+  57%   { transform: rotate(-15deg); }
+  58%   { transform: rotate(25deg); }
+  59%   { transform: rotate(-15deg); }
+  60%   { transform: rotate(25deg); }
+  61%   { transform: rotate(-15deg); }
+  62%   { transform: rotate(20deg); }
+  63%   { transform: rotate(-10deg); }
+  64%   { transform: rotate(10deg); }
+  65%   { transform: rotate(0deg); }
+  /* Back to gentle wag */
+  67%   { transform: rotate(10deg); }
+  69%   { transform: rotate(-5deg); }
+  71%   { transform: rotate(10deg); }
+  73%   { transform: rotate(-5deg); }
+  75%   { transform: rotate(10deg); }
+  77%   { transform: rotate(-5deg); }
+  79%   { transform: rotate(10deg); }
+  81%   { transform: rotate(-5deg); }
+  83%   { transform: rotate(10deg); }
+  85%   { transform: rotate(-5deg); }
+  87%   { transform: rotate(10deg); }
+  89%   { transform: rotate(-5deg); }
+  91%   { transform: rotate(10deg); }
+  93%   { transform: rotate(-5deg); }
+  95%   { transform: rotate(10deg); }
+  97%   { transform: rotate(-5deg); }
+  100%  { transform: rotate(0deg); }
+}
+
+/* ── Tongue: hidden while walking, visible during stop ── */
+.dog-tongue {
+  animation: tongueShow 12s ease-in-out infinite;
+}
+
+@keyframes tongueShow {
+  0%    { opacity: 0; }
+  35%   { opacity: 0; }
+  38%   { opacity: 1; }
+  62%   { opacity: 1; }
+  65%   { opacity: 0; }
+  100%  { opacity: 0; }
+}
+
+/* ── Body bounce during walk ── */
+.walking-dog-svg {
+  animation: bodyBounce 12s ease-in-out infinite;
+}
+
+@keyframes bodyBounce {
+  /* Walk bounce phase 1 */
+  0%    { transform: translateY(0); }
+  1.5%  { transform: translateY(-1.5px); }
+  3%    { transform: translateY(0); }
+  4.5%  { transform: translateY(-1.5px); }
+  6%    { transform: translateY(0); }
+  7.5%  { transform: translateY(-1.5px); }
+  9%    { transform: translateY(0); }
+  10.5% { transform: translateY(-1.5px); }
+  12%   { transform: translateY(0); }
+  13.5% { transform: translateY(-1.5px); }
+  15%   { transform: translateY(0); }
+  16.5% { transform: translateY(-1.5px); }
+  18%   { transform: translateY(0); }
+  19.5% { transform: translateY(-1.5px); }
+  21%   { transform: translateY(0); }
+  22.5% { transform: translateY(-1.5px); }
+  24%   { transform: translateY(0); }
+  25.5% { transform: translateY(-1.5px); }
+  27%   { transform: translateY(0); }
+  28.5% { transform: translateY(-1.5px); }
+  30%   { transform: translateY(0); }
+  31.5% { transform: translateY(-1px); }
+  33%   { transform: translateY(0); }
+  /* Sit still */
+  35%   { transform: translateY(0); }
+  65%   { transform: translateY(0); }
+  /* Walk bounce phase 2 */
+  66.5% { transform: translateY(-1.5px); }
+  68%   { transform: translateY(0); }
+  69.5% { transform: translateY(-1.5px); }
+  71%   { transform: translateY(0); }
+  72.5% { transform: translateY(-1.5px); }
+  74%   { transform: translateY(0); }
+  75.5% { transform: translateY(-1.5px); }
+  77%   { transform: translateY(0); }
+  78.5% { transform: translateY(-1.5px); }
+  80%   { transform: translateY(0); }
+  81.5% { transform: translateY(-1.5px); }
+  83%   { transform: translateY(0); }
+  84.5% { transform: translateY(-1.5px); }
+  86%   { transform: translateY(0); }
+  87.5% { transform: translateY(-1.5px); }
+  89%   { transform: translateY(0); }
+  90.5% { transform: translateY(-1.5px); }
+  92%   { transform: translateY(0); }
+  93.5% { transform: translateY(-1.5px); }
+  95%   { transform: translateY(0); }
+  96.5% { transform: translateY(-1px); }
+  98%   { transform: translateY(0); }
+  100%  { transform: translateY(0); }
+}

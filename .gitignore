@@ -4,13 +4,16 @@ node_modules/
 # Environment variables
 .env
 server/.env
+client/.env
 
 # Build output
 client/dist/
+server/dist/
 
 # IDE
 .vscode/
 .idea/
+.claudin/
 
 # OS files
 .DS_Store
@@ -19,3 +22,9 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Debug/temp files
+*.png
+*.bak
+*.orig
+*.modified

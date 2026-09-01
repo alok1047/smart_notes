@@ -1,0 +1,30 @@
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm'],
+  outDir: 'dist',
+  clean: true,
+  sourcemap: true,
+  dts: false,
+  target: 'node20',
+  platform: 'node',
+  treeshake: true,
+  external: [
+    '@google/generative-ai',
+    '@prisma/client',
+    'cors',
+    'dotenv',
+    'express',
+    'express-rate-limit',
+    'google-auth-library',
+    'groq-sdk',
+    'helmet',
+    'multer',
+    'openai',
+    'pdf-parse',
+    'pino',
+    'pino-pretty',
+    'zod',
+  ],
+});

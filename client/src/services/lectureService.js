@@ -1,8 +1,13 @@
 import api from './api';
-import { getIdToken } from './firebase';
+import { getIdToken } from './googleAuth';
 
 export const getLectures = async (subjectId) => {
   const res = await api.get(`/lectures/${subjectId}`);
+  return res.data;
+};
+
+export const getSingleLecture = async (lectureId) => {
+  const res = await api.get(`/lectures/single/${lectureId}`);
   return res.data;
 };
 
@@ -40,7 +45,7 @@ export const processNotes = async (lectureId, aiProvider, apiKey, options = {}) 
   return res.data;
 };
 
-export const streamProcessNotes = async (lectureId, aiProvider, apiKey, options, onChunk, onComplete, onError) => {
+export const streamProcessNotes = async (lectureId, aiProvider, apiKey, options, onChunk, onComplete, onError, onStage) => {
   try {
     const token = await getIdToken();
     const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -81,6 +86,9 @@ export const streamProcessNotes = async (lectureId, aiProvider, apiKey, options,
               accumulatedText += data.chunk;
               if (onChunk) onChunk(data.chunk, accumulatedText);
             }
+            if (data.stage) {
+              if (onStage) onStage(data.stage);
+            }
             if (data.done) {
               if (onComplete) onComplete(data.fullText || accumulatedText);
             }
@@ -98,10 +106,11 @@ export const streamProcessNotes = async (lectureId, aiProvider, apiKey, options,
   }
 };
 
-export const uploadLectureFile = async (lectureId, file, apiKey = '') => {
+export const uploadLectureFile = async (lectureId, file, apiKey = '', forceOcr = false) => {
   const formData = new FormData();
   formData.append('file', file);
   if (apiKey) formData.append('apiKey', apiKey);
+  if (forceOcr) formData.append('forceOcr', 'true');
 
   const res = await api.post(`/lectures/${lectureId}/import-file`, formData, {
     headers: {
@@ -121,7 +130,17 @@ export const getRecentLectures = async () => {
   return res.data;
 };
 
-export const chatWithNotes = async (subjectId, query, aiProvider, apiKey = '') => {
-  const res = await api.post('/ai/chat', { subjectId, query, aiProvider, apiKey });
+export const getLectureVersions = async (lectureId) => {
+  const res = await api.get(`/lectures/${lectureId}/versions`);
+  return res.data;
+};
+
+export const deleteLectureVersion = async (versionId) => {
+  const res = await api.delete(`/lectures/versions/${versionId}`);
+  return res.data;
+};
+
+export const chatWithNotes = async (subjectId, query, aiProvider, apiKey = '', model = '') => {
+  const res = await api.post('/ai/chat', { subjectId, query, aiProvider, apiKey, model: model || undefined });
   return res.data;
 };

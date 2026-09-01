@@ -3,7 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Topbar from '../components/Topbar';
 import LectureItem from '../components/LectureItem';
 import { getLectures, addLecture, deleteLecture, updateLectureTitle } from '../services/lectureService';
-import { ArrowLeft, BookOpen, CheckCircle2, Edit3, Circle, Plus, Loader2, MessageCircle } from 'lucide-react';
+import { toErrorMessage } from '../utils/errors';
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  Edit3,
+  Circle,
+  Plus,
+  Loader2,
+  MessageCircle,
+  FileText,
+} from 'lucide-react';
 import NotesChat from '../components/NotesChat';
 
 const LecturesPage = () => {
@@ -14,17 +25,20 @@ const LecturesPage = () => {
   const [loading, setLoading] = useState(true);
   const [addingLecture, setAddingLecture] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
+        setActionError('');
         const data = await getLectures(subjectId);
         setSubject(data.subject);
         setLectures(data.lectures);
       } catch (err) {
         console.error(err);
         if (err.response?.status === 404) navigate('/dashboard');
+        else setActionError(toErrorMessage(err, 'Failed to load lectures.'));
       } finally {
         setLoading(false);
       }
@@ -34,11 +48,12 @@ const LecturesPage = () => {
   const handleAddLecture = async () => {
     try {
       setAddingLecture(true);
+      setActionError('');
       const newLec = await addLecture(subjectId);
       setLectures(prev => [...prev, newLec]);
     } catch (e) {
       console.error(e);
-      alert('Failed to add blank lecture.');
+      setActionError(toErrorMessage(e, 'Failed to add blank lecture.'));
     } finally {
       setAddingLecture(false);
     }
@@ -47,11 +62,12 @@ const LecturesPage = () => {
   const handleDeleteLecture = async (lecId) => {
     if (!window.confirm("Delete this lecture? Any AI-generated notes will be lost forever.")) return;
     try {
+      setActionError('');
       await deleteLecture(lecId);
       setLectures(prev => prev.filter(l => l._id !== lecId));
     } catch (e) {
       console.error(e);
-      alert('Failed to delete lecture.');
+      setActionError(toErrorMessage(e, 'Failed to delete lecture.'));
     }
   };
 
@@ -61,7 +77,7 @@ const LecturesPage = () => {
       setLectures(prev => prev.map(l => l._id === lecId ? { ...l, title: newTitle } : l));
     } catch (e) {
       console.error(e);
-      alert('Failed to save title update.');
+      setActionError(toErrorMessage(e, 'Failed to save title update.'));
     }
   };
 
@@ -105,28 +121,44 @@ const LecturesPage = () => {
               <div className="animate-fade-in">
                 {/* Subject header */}
                 <div className="mb-7">
-                  <div className="flex items-center gap-3 mb-1">
-                    <div className="w-9 h-9 rounded-md bg-(--bg-subtle) border border-(--border-subtle) flex items-center justify-center shrink-0">
-                      <BookOpen size={16} className="text-(--text-dim)" strokeWidth={1.75} />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-(--accent-soft) border border-(--accent-ring) flex items-center justify-center shrink-0 text-(--accent-text)">
+                      <BookOpen size={18} strokeWidth={1.75} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h1 className="page-title truncate">{subject?.name}</h1>
-                      <p className="page-subtitle">
+                      <h1 className="text-[22px] font-bold text-(--text) tracking-tight truncate">{subject?.name}</h1>
+                      <p className="text-[13px] text-(--text-dim) mt-0.5">
                         {lectures.length} {lectures.length === 1 ? 'lecture' : 'lectures'} · {pct}% complete
                       </p>
                     </div>
                     <button
                       onClick={() => setIsChatOpen(true)}
-                      className="btn-primary"
+                      className="btn-primary shrink-0"
+                      disabled={!lectures.some(l => l.processedNotes?.trim() || l.rawNotes?.trim())}
+                      title={lectures.some(l => l.processedNotes?.trim() || l.rawNotes?.trim()) ? 'Ask about your notes' : 'Add some notes first'}
                     >
                       <MessageCircle size={16} />
                       <span className="hidden sm:inline">Chat with Notes</span>
                     </button>
                   </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[12px] text-(--text-dim)">Subject progress</span>
+                      <span className="text-[12px] font-semibold text-(--accent-text)">{pct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-(--bg-subtle) border border-(--border-subtle) overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-(--accent) transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
-           <br></br>
+
                 {/* Stats strip */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
                   <div className="stat-card">
                     <div className="stat-card-label flex items-center gap-1.5">
                       <CheckCircle2 size={11} className="text-(--success)" />
@@ -154,42 +186,56 @@ const LecturesPage = () => {
                   </div>
                 </div>
 
-                <br></br>
+                {actionError && (
+                  <div className="mb-4 p-3 rounded-md bg-(--danger-soft) border border-(--danger-border) flex items-center gap-2">
+                    <p className="text-[13px] text-(--danger) font-medium">{actionError}</p>
+                  </div>
+                )}
+
                 {/* Lectures list */}
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-[12px] font-semibold text-(--text-dim) uppercase tracking-wider">
                     Lectures
                   </h2>
+                  {lectures.length > 0 && (
+                    <span className="text-[12px] text-(--text-faint)">{lectures.length}</span>
+                  )}
                 </div>
 
-          <div className="lecture-list flex flex-col gap-4">
-  {lectures.map(l => (
-    <LectureItem
-      key={l._id}
-      lecture={l}
-      onDelete={() => handleDeleteLecture(l._id)}
-      onUpdateTitle={(title) => handleUpdateTitle(l._id, title)}
-    />
-  ))}
-
-  <button
-    onClick={handleAddLecture}
-    disabled={addingLecture}
-    className="btn-dashed"
-  >
-    {addingLecture ? (
-      <Loader2 size={14} className="animate-spin" />
-    ) : (
-      <Plus size={14} />
-    )}
-
-    <span>
-      {addingLecture
-        ? 'Adding lecture...'
-        : 'Add blank lecture'}
-    </span>
-  </button>
-</div>
+                {lectures.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center gap-4 border border-dashed border-(--border-subtle) rounded-2xl mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-(--surface-hover) flex items-center justify-center">
+                      <FileText size={22} className="text-(--text-dim)" />
+                    </div>
+                    <h3 className="text-[16px] font-semibold text-(--text)">No lectures yet</h3>
+                    <p className="text-[13px] text-(--text-dim) max-w-sm">
+                      Create your first blank lecture, or paste lecture notes directly into the editor.
+                    </p>
+                    <button onClick={handleAddLecture} disabled={addingLecture} className="btn-primary flex items-center gap-1.5">
+                      {addingLecture ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Create first lecture
+                    </button>
+                  </div>
+                ) : (
+                  <div className="lecture-list flex flex-col gap-2.5">
+                    {lectures.map(l => (
+                      <LectureItem
+                        key={l._id}
+                        lecture={l}
+                        onDelete={() => handleDeleteLecture(l._id)}
+                        onUpdateTitle={(title) => handleUpdateTitle(l._id, title)}
+                      />
+                    ))}
+                    <button onClick={handleAddLecture} disabled={addingLecture} className="btn-dashed">
+                      {addingLecture ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Plus size={14} />
+                      )}
+                      <span>{addingLecture ? 'Adding lecture...' : 'Add blank lecture'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

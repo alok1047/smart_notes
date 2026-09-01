@@ -1,22 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { useCommandPalette } from '../context/CommandPaletteContext';
 import { getSubjects } from '../services/subjectService';
 import { getRecentLectures } from '../services/lectureService';
+import { BrandLockup } from './Brand';
 import {
-  Folder,
-  FileText,
   Clock,
+  Folder,
   Plus,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   Search,
   Home,
-  ChevronDown,
-  BookOpen,
 } from 'lucide-react';
 
 const formatRelativeDate = (dateStr) => {
@@ -37,19 +32,18 @@ const formatRelativeDate = (dateStr) => {
 };
 
 const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
-  const { user } = useAuth();
   const { toggle: toggleCmdk } = useCommandPalette();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [subjects, setSubjects] = useState([]);
   const [recentLectures, setRecentLectures] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedSubjects, setExpandedSubjects] = useState({});
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const closeMobile = () => setMobileOpen(false);
 
   const fetchData = async () => {
     try {
-      setLoading(true);
       const [subData, recData] = await Promise.all([
         getSubjects().catch(() => []),
         getRecentLectures().catch(() => []),
@@ -58,56 +52,65 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
       setRecentLectures(recData);
     } catch (e) {
       console.error('Sidebar fetch error:', e);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    let active = true;
+    (async () => {
+      try {
+        const [subData, recData] = await Promise.all([
+          getSubjects().catch(() => []),
+          getRecentLectures().catch(() => []),
+        ]);
+        if (!active) return;
+        setSubjects(subData);
+        setRecentLectures(recData);
+      } catch (e) {
+        console.error('Sidebar fetch error:', e);
+      }
+    })();
+    return () => { active = false; };
   }, [location.pathname]);
 
   useEffect(() => {
     const handleRefresh = () => fetchData();
+    const handleMobileToggle = () => setMobileOpen(prev => !prev);
     window.addEventListener('refreshSidebar', handleRefresh);
-    return () => window.removeEventListener('refreshSidebar', handleRefresh);
+    window.addEventListener('toggleMobileSidebar', handleMobileToggle);
+    return () => {
+      window.removeEventListener('refreshSidebar', handleRefresh);
+      window.removeEventListener('toggleMobileSidebar', handleMobileToggle);
+    };
   }, []);
 
-  const toggleExpand = (subId, e) => {
-    e.stopPropagation();
-    setExpandedSubjects(prev => ({ ...prev, [subId]: !prev[subId] }));
-  };
-
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      {/* Brand Header */}
-      <div className="flex items-center justify-between px-3.5 h-13 border-b border-(--border-subtle) shrink-0">
-        <Link to="/dashboard" className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#2383e2] flex items-center justify-center shrink-0 text-white shadow-sm">
-            <BookOpen size={15} />
-          </div>
-          {!collapsed && (
-            <span className="text-[14 font-semibold text-(--text) tracking-tight truncate">
-              SmartNotes
-            </span>
-          )}
+    <>
+      {mobileOpen && (
+        <div className="sidebar-backdrop" onClick={closeMobile} aria-hidden="true" />
+      )}
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+      {/* Brand */}
+      <div className="flex items-center justify-between px-4 h-13 border-b border-(--sidebar-border) shrink-0">
+        <Link to="/dashboard" className="min-w-0" aria-label="NotesSync dashboard" onClick={closeMobile}>
+          <BrandLockup size={26} wordmarkClassName="text-(--sidebar-text)" />
         </Link>
         <button
           onClick={onToggle}
-          className="btn-ghost p-1 shrink-0 text-(--text-dim) hover:text-(--text)"
+          className="btn-ghost p-1 shrink-0 text-(--sidebar-text-faint) hover:text-(--sidebar-text)"
           title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
         </button>
       </div>
 
-      {/* Action Buttons */}
-      <div className="px-3 pt-3 pb-2 shrink-0 flex flex-col gap-1.5">
+      {/* Actions */}
+      <div className="px-3.5 pt-4 pb-3 shrink-0 flex flex-col gap-2">
         {!collapsed ? (
           <>
             <button
               onClick={onNewSubject}
-              className="w-full h-9 flex items-center gap-2 px-3 bg-[#2383e2] hover:bg-[#1b6ec2] text-white font-medium text-[13px] rounded-lg transition-colors shadow-sm"
+              className="w-full h-9.5 flex items-center justify-center gap-2 rounded-xl bg-(--sidebar-accent) hover:bg-[var(--sidebar-accent-text)] text-(--sidebar-bg) font-semibold text-[13px] shadow-sm transition-colors"
             >
               <Plus size={15} />
               <span>New Subject</span>
@@ -115,19 +118,19 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
 
             <button
               onClick={toggleCmdk}
-              className="w-full h-8.5 flex items-center justify-between px-3 bg-(--surface) hover:bg-(--surface-hover) border border-(--border-subtle) rounded-lg text-[12.5px] text-(--text-dim) transition-colors group"
+              className="w-full h-8 flex items-center justify-between px-3 bg-transparent hover:bg-(--sidebar-surface-hover) border border-(--sidebar-border) rounded-lg text-[12.5px] text-(--sidebar-text-dim) transition-colors group"
             >
               <div className="flex items-center gap-2">
-                <Search size={13} className="text-(--text-faint) group-hover:text-(--text-dim)" />
-                <span>Search notes...</span>
+                <Search size={13} className="text-(--sidebar-text-faint) group-hover:text-(--sidebar-text-dim)" />
+                <span>Search notes…</span>
               </div>
-              <kbd className="kbd text-[10px]">⌘K</kbd>
+              <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-(--sidebar-surface-hover) border border-(--sidebar-border) text-(--sidebar-text-faint)">⌘K</kbd>
             </button>
           </>
         ) : (
           <button
             onClick={onNewSubject}
-            className="w-full h-9 flex items-center justify-center bg-[#2383e2] hover:bg-[#1b6ec2] text-white rounded-lg"
+            className="w-full h-9 flex items-center justify-center bg-(--sidebar-accent) hover:bg-[var(--sidebar-accent-text)] text-(--sidebar-bg) rounded-xl"
             title="New Subject"
           >
             <Plus size={16} />
@@ -140,7 +143,7 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
         {/* Navigation Section */}
         <div>
           {!collapsed && (
-            <p className="px-2 pb-1.5 text-[10px] font-bold text-(--text-faint) uppercase tracking-wider">
+            <p className="px-2 pb-1.5 text-[10px] font-bold text-(--sidebar-text-faint) uppercase tracking-wider">
               Navigation
             </p>
           )}
@@ -148,8 +151,8 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
             to="/dashboard"
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
               location.pathname === '/dashboard'
-                ? 'bg-[#2383e2]/15 text-[#529CCA]'
-                : 'text-(--text-dim) hover:bg-(--surface-hover) hover:text-(--text)'
+                ? 'bg-(--sidebar-accent-soft) text-(--sidebar-accent-text)'
+                : 'text-(--sidebar-text-dim) hover:bg-(--sidebar-surface-hover) hover:text-(--sidebar-text)'
             }`}
             title={collapsed ? 'Dashboard' : undefined}
           >
@@ -162,8 +165,8 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
         <div>
           {!collapsed && (
             <div className="flex items-center justify-between px-2 pb-1.5">
-              <span className="text-[10px] font-bold text-(--text-faint) uppercase tracking-wider flex items-center gap-1.5">
-                <Clock size={11} className="text-[#2383e2]" />
+              <span className="text-[10px] font-bold text-(--sidebar-text-faint) uppercase tracking-wider flex items-center gap-1.5">
+                <Clock size={11} className="text-(--sidebar-accent-text)" />
                 Recent Notes
               </span>
             </div>
@@ -176,20 +179,20 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
               return (
                 <button
                   key={lec._id}
-                  onClick={() => navigate(`/editor/${lec._id}`)}
-                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left transition-colors ${
+                  onClick={() => { closeMobile(); navigate(`/editor/${lec._id}`); }}
+                  className={`group w-full flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors ${
                     active
-                      ? 'bg-[#2383e2]/20 text-[#529CCA] font-semibold'
-                      : 'text-(--text-dim) hover:bg-(--surface-hover) hover:text-(--text)'
+                      ? 'bg-(--sidebar-accent-soft) text-(--sidebar-accent-text) font-medium'
+                      : 'text-(--sidebar-text-dim) hover:bg-(--sidebar-surface-hover) hover:text-(--sidebar-text)'
                   }`}
                   title={collapsed ? (lec.title || `Lecture ${lec.lectureNumber}`) : undefined}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    {isProcessed ? (
-                      <Sparkles size={13} className="shrink-0 text-blue-400" />
-                    ) : (
-                      <FileText size={13} className="shrink-0 text-(--text-faint)" />
-                    )}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        isProcessed ? 'bg-(--sidebar-accent-text)' : 'bg-(--sidebar-text-faint)'
+                      }`}
+                    />
                     {!collapsed && (
                       <span className="text-[12.5px] truncate">
                         {lec.title?.trim() || `Lecture ${lec.lectureNumber}`}
@@ -197,7 +200,7 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
                     )}
                   </div>
                   {!collapsed && (
-                    <span className="text-[10.5px] text-(--text-faint) shrink-0">
+                    <span className="text-[10px] text-(--sidebar-text-faint) shrink-0">
                       {formatRelativeDate(lec.updatedAt)}
                     </span>
                   )}
@@ -211,8 +214,8 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
         <div>
           {!collapsed && (
             <div className="flex items-center justify-between px-2 pb-1.5">
-              <span className="text-[10px] font-bold text-(--text-faint) uppercase tracking-wider flex items-center gap-1.5">
-                <Folder size={11} className="text-(--text-faint)" />
+              <span className="text-[10px] font-bold text-(--sidebar-text-faint) uppercase tracking-wider flex items-center gap-1.5">
+                <Folder size={11} className="text-(--sidebar-text-faint)" />
                 Workspace
               </span>
             </div>
@@ -224,16 +227,18 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
               return (
                 <div key={s._id} className="flex flex-col">
                   <div
-                    onClick={() => navigate(`/lectures/${s._id}`)}
-                    className={`group w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-colors ${
+                    onClick={() => { closeMobile(); navigate(`/lectures/${s._id}`); }}
+                    className={`group w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-left cursor-pointer transition-colors ${
                       active
-                        ? 'bg-[#2383e2]/15 text-[#529CCA] font-semibold'
-                        : 'text-(--text-dim) hover:bg-(--surface-hover) hover:text-(--text)'
+                        ? 'bg-(--sidebar-accent-soft) text-(--sidebar-accent-text) font-medium'
+                        : 'text-(--sidebar-text-dim) hover:bg-(--sidebar-surface-hover) hover:text-(--sidebar-text)'
                     }`}
                     title={collapsed ? s.name : undefined}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Folder size={13.5} className="shrink-0 text-(--text-faint) group-hover:text-[#529CCA]" />
+                      <span className="w-5 h-5 rounded-md border border-(--sidebar-border) bg-(--sidebar-surface-hover) flex items-center justify-center text-[10px] font-semibold text-(--sidebar-text-dim) shrink-0 group-hover:text-(--sidebar-accent-text)">
+                        {s.name?.[0]?.toUpperCase() || '·'}
+                      </span>
                       {!collapsed && (
                         <span className="text-[12.5px] truncate">
                           {s.name}
@@ -241,7 +246,7 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
                       )}
                     </div>
                     {!collapsed && (
-                      <span className="text-[10.5px] text-(--text-faint) shrink-0">
+                      <span className="text-[10px] text-(--sidebar-text-faint) shrink-0">
                         {s.lectureCount || 0}
                       </span>
                     )}
@@ -253,6 +258,7 @@ const Sidebar = ({ collapsed, onToggle, onNewSubject }) => {
         </div>
       </div>
     </aside>
+    </>
   );
 };
 
