@@ -24,7 +24,9 @@ Thumbs.db
 npm-debug.log*
 
 # Debug/temp files
-*.png
 *.bak
 *.orig
 *.modified
+client/screenshot.png
+client/chat_fixed_screenshot.png
+client/chatcheck_final.png
